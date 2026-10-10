@@ -30,14 +30,14 @@ Didesain khusus untuk pasar B2B IT & Audio Visual dengan akumulasi nilai transak
 
 | Level | Rentang Poin Tier | Estimasi Akumulasi Belanja | Warna Tema | Keuntungan Utama (Perks) |
 | :--- | :--- | :--- | :--- | :--- |
-| **Classic** 🔰 | `0 – 499 Pts` | Rp 0 – Rp 4,99 Juta | Neutral Slate/Zinc | Akun terverifikasi, katalog enterprise, +50 Poin ulasan terverifikasi, Faktur Pajak PKP |
+| **Classic** 🔰 | `0 – 499 Pts` | Rp 0 – Rp 4,99 Juta | Neutral Slate/Zinc | Akun terverifikasi, katalog enterprise, +50 Poin ulasan terverifikasi, menerima Faktur Pajak PKP |
 | **Bronze** 🥉 | `500 – 1.499 Pts` | Rp 5 Juta – Rp 14,9 Juta | Warm Bronze/Copper | Semua benefit Classic, Voucher potongan Rp 25.000 / diskon aksesori, Gratis ongkir 1x/bulan |
 | **Silver** 🥈 | `1.500 – 7.499 Pts` | Rp 15 Juta – Rp 74,9 Juta | Metallic Silver | Semua benefit Bronze, Bonus 5% Poin belanja, Gratis ongkir 2x/bulan, Konsultasi teknis AV |
 | **Gold** 🥇 | `7.500 – 14.999 Pts` | Rp 75 Juta – Rp 149,9 Juta | Luxury Gold | Semua benefit Silver, Harga khusus proyek B2B (*Project Pricing*), Prioritas alokasi stok, Gratis ongkir 4x/bln, Bonus 10% Poin |
 | **Platinum** 💎 | `15.000 – 39.999 Pts` | Rp 150 Juta – Rp 399,9 Juta | Royal Violet & Indigo | Semua benefit Gold, Dedicated Account Manager B2B, Termin pembayaran B2B (NET 14 Hari), Prioritas garansi & RMA Express, Bonus 20% Poin |
 | **Diamond** 👑 | `≥ 40.000 Pts` | ≥ Rp 400 Juta | Brilliant Cyan & Deep Ocean | **Top Executive Tier**: Termin pembayaran B2B (NET 30 Hari), Prioritas pengiriman instan same-day, Hotline 24/7 & asistensi instalasi on-site, Bonus 30% Poin, Hadiah corporate anniversary |
 
-### B. 6 Aturan & Kebijakan Sistem Loyalitas (Revisi 3)
+### B. 6 Aturan & Kebijakan Sistem Loyalitas (Revisi 4)
 1. **Periode Kualifikasi & Status Level (`current_tier`)**:
    - Status level member aktif dan seluruh perks dibaca dari kolom `current_tier` (beserta `tier_valid_until` hingga 31 Des tahun depan), bukan dihitung ulang seketika dari `tier_points`.
    - Kenaikan tier (*upgrade*) aktif seketika saat threshold `tier_points` tercapai.
@@ -52,6 +52,11 @@ Didesain khusus untuk pasar B2B IT & Audio Visual dengan akumulasi nilai transak
 6. **Kebijakan Retur & Poin Ulasan**:
    - Bonus +50 Poin ulasan hanya masuk ke Saldo Poin untuk produk terverifikasi (maks 1 ulasan/produk).
    - Saat pesanan diretur: `tier_points` ditarik poin dasar (level member tidak langsung turun, dievaluasi akhir tahun). `points_balance` ditarik poin dasar + bonus tier. Jika saldo tidak cukup, saldo boleh bernilai minus (utang poin).
+
+7. **Akun Perusahaan (Revisi 4)**: Poin dan tier dimiliki akun perusahaan (satu NPWP = satu akun induk). Staf = sub-akun. Hanya akun induk yang dapat menukar poin; batas 5.000 poin/bulan berlaku per akun induk.
+8. **Dasar Perhitungan & Waktu Poin**: Nilai bersih = nilai barang setelah diskon/voucher, tanpa PPN, ongkir, dan biaya admin. Poin masuk setelah pesanan Selesai + 7 hari (bayar langsung) atau invoice Lunas + 7 hari (termin NET). Estimasi poin di layar hanya perkiraan.
+9. **Evaluasi Akhir Tahun**: 31 Des turun maksimal 1 level, lalu `tier_points` direset 1 Jan. Retur lintas tahun menarik dari `tier_points` tahun berjalan (minimal 0).
+10. **Voucher Bronze**: Rp 25.000, maksimal 1x per kuartal, berlaku 90 hari. Termin NET Platinum/Diamond aktif setelah verifikasi kredit.
 
 ### C. Formula Perolehan & Penukaran Poin
 * **Perolehan Belanja**: `floor(Nilai Belanja / Rp 10.000)` Poin dasar.

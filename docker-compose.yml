@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: accommerce_mysql
+    restart: unless-stopped
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: accommerce
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command: --default-time-zone='+07:00'
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: accommerce_pma
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: mysql
+      MYSQL_ROOT_PASSWORD: password
+    depends_on:
+      - mysql
+
+volumes:
+  mysql_data:

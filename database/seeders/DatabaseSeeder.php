@@ -28,5 +28,10 @@ class DatabaseSeeder extends Seeder
             ]
         );
         $admin->assignRole('administrator');
+
+        // 4. Seed catalog data dari Front/src/data (Skip during tests to save time)
+        if (!app()->environment('testing')) {
+            $this->call(\Modules\Catalog\Database\Seeders\CatalogSeeder::class);
+        }
     }
 }

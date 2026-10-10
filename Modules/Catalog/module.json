@@ -4,5 +4,9 @@
   "enabled": true,
   "priority": 10,
   "requires": [],
-  "permissions": ["view_any_product", "view_product", "create_product", "update_product", "delete_product", "view_any_brand", "update_brand"]
+  "permissions": [
+    "view_any_product", "view_product", "create_product", "update_product", "delete_product",
+    "view_any_category", "view_category", "create_category", "update_category", "delete_category",
+    "view_any_brand", "view_brand", "create_brand", "update_brand", "delete_brand"
+  ]
 }

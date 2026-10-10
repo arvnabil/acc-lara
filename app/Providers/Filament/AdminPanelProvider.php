@@ -44,7 +44,14 @@ class AdminPanelProvider extends PanelProvider
                 Authenticate::class,
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
-            ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages');
+            ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
+            ->pages([
+                \Filament\Pages\Dashboard::class,
+            ])
+            ->widgets([
+                \Filament\Widgets\AccountWidget::class,
+                \Filament\Widgets\FilamentInfoWidget::class,
+            ]);
 
         // Setiap modul aktif menyumbang Resource/Page-nya sendiri ke panel yang sama.
         foreach (app(ModuleManager::class)->enabled() as $module) {

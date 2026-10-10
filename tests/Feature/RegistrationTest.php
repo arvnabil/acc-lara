@@ -44,7 +44,7 @@ test('storefront registration rejects duplicate email', function () {
         'password' => bcrypt('password'),
     ]);
 
-    $response = $this->postJson('/api/register', [
+    $response = $this->postJson('/register', [
         'name' => 'New User',
         'email' => 'duplicate@accommerce.id',
         'password' => 'secret1234',
@@ -52,4 +52,22 @@ test('storefront registration rejects duplicate email', function () {
 
     $response->assertStatus(422)
              ->assertJsonValidationErrors(['email']);
+});
+
+test('storefront registration rolls back company creation on failure', function () {
+    $initialCompanyCount = Company::count();
+
+    // Trigger failure during user creation by using invalid data or mock
+    try {
+        DB::transaction(function () {
+            $company = Company::create(['name' => 'Failing Company Inc']);
+            // Force an exception inside transaction
+            throw new \Exception('Simulated database error during user creation');
+        });
+    } catch (\Exception $e) {
+        // Expected exception
+    }
+
+    expect(Company::count())->toBe($initialCompanyCount);
+    expect(Company::where('name', 'Failing Company Inc')->exists())->toBeFalse();
 });

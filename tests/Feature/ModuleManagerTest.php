@@ -4,6 +4,8 @@ use App\Support\Modules\Module;
 use App\Support\Modules\ModuleManager;
 use Illuminate\Support\Collection;
 
+uses(Tests\TestCase::class);
+
 test('module manager sorts modules by priority and dependency', function () {
     $manager = new ModuleManager();
     $enabled = $manager->enabled();
@@ -17,7 +19,14 @@ test('module manager throws exception on missing dependency', function () {
         public function all(): Collection
         {
             return collect([
-                'BrokenModule' => new Module('BrokenModule', 'App\\Broken', '/path', priority: 10, enabled: true, requires: ['NonExistentModule']),
+                'BrokenModule' => new Module(
+                    name: 'BrokenModule',
+                    path: '/path',
+                    enabled: true,
+                    priority: 10,
+                    requires: ['NonExistentModule'],
+                    permissions: []
+                ),
             ]);
         }
     };
@@ -30,8 +39,22 @@ test('module manager throws exception on circular dependency', function () {
         public function all(): Collection
         {
             return collect([
-                'ModA' => new Module('ModA', 'App\\ModA', '/pathA', priority: 10, enabled: true, requires: ['ModB']),
-                'ModB' => new Module('ModB', 'App\\ModB', '/pathB', priority: 20, enabled: true, requires: ['ModA']),
+                'ModA' => new Module(
+                    name: 'ModA',
+                    path: '/pathA',
+                    enabled: true,
+                    priority: 10,
+                    requires: ['ModB'],
+                    permissions: []
+                ),
+                'ModB' => new Module(
+                    name: 'ModB',
+                    path: '/pathB',
+                    enabled: true,
+                    priority: 20,
+                    requires: ['ModA'],
+                    permissions: []
+                ),
             ]);
         }
     };

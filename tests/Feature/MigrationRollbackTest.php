@@ -10,4 +10,7 @@ test('migrate fresh and rollback down succeeds without errors', function () {
 
     $rollbackExitCode = Artisan::call('migrate:rollback');
     expect($rollbackExitCode)->toBe(0);
+
+    // Re-migrate to leave test database intact for subsequent tests
+    Artisan::call('migrate:fresh');
 });

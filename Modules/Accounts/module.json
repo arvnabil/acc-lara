@@ -1,0 +1,18 @@
+{
+  "name": "Accounts",
+  "description": "Akun storefront, perusahaan (induk/sub-akun), alamat, dan autentikasi.",
+  "enabled": true,
+  "priority": 5,
+  "requires": [],
+  "permissions": [
+    "access_panel",
+    "view_any_user",
+    "view_user",
+    "create_user",
+    "update_user",
+    "delete_user",
+    "view_any_company",
+    "view_company",
+    "update_company"
+  ]
+}

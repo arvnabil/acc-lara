@@ -15,6 +15,8 @@ import RegisterPage from './pages/RegisterPage.jsx';
 import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
 import CheckoutPage from './pages/CheckoutPage.jsx';
+import CartPage from './pages/CartPage.jsx';
+import WishlistPage from './pages/WishlistPage.jsx';
 
 const pageFiles = {
     'Catalog::HomePage': HomePage,
@@ -28,6 +30,8 @@ const pageFiles = {
     'Catalog::ForgotPasswordPage': ForgotPasswordPage,
     'Catalog::DashboardPage': DashboardPage,
     'Catalog::CheckoutPage': CheckoutPage,
+    'Catalog::CartPage': CartPage,
+    'Catalog::WishlistPage': WishlistPage,
 };
 
 function resolve(name) {

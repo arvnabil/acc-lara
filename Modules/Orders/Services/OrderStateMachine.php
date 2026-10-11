@@ -39,7 +39,7 @@ class OrderStateMachine
             $order->statusHistory()->create(['from_status' => $from, 'to_status' => $to->value, 'actor_id' => $actorId, 'created_at' => now()]);
 
             if (in_array($to, [OrderStatus::Cancelled, OrderStatus::Returned], true)) {
-                $this->restoreStock($order, $to->value);
+                $this->restoreStock($order, $to === OrderStatus::Cancelled ? 'cancel' : 'returned');
                 if ($to === OrderStatus::Cancelled && $order->promo_code_id) {
                     PromoCode::whereKey($order->promo_code_id)->lockForUpdate()->where('used_count', '>', 0)->decrement('used_count');
                 }

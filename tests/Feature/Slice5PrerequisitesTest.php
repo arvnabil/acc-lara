@@ -90,7 +90,7 @@ test('promo min order quota schedule and inactive rules reject with the React er
 })->with([
     [['min_order' => 1000000, 'is_active' => true]],
     [['min_order' => 0, 'max_uses' => 1, 'used_count' => 1, 'is_active' => true]],
-    [['min_order' => 0, 'valid_from' => '2099-01-01 00:00:00', 'is_active' => true]],
+    [['min_order' => 0, 'valid_from' => '2037-01-01 00:00:00', 'is_active' => true]],
     [['min_order' => 0, 'valid_until' => '2020-01-01 00:00:00', 'is_active' => true]],
     [['min_order' => 0, 'is_active' => false]],
 ]);

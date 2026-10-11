@@ -99,7 +99,9 @@ class CartController extends Controller
     {
         return $request->user()
             ? Cart::firstOrCreate(['user_id' => $request->user()->id])
-            : Cart::firstOrCreate(['session_id' => $request->session()->getId()]);
+            : tap(Cart::firstOrCreate(['session_id' => $request->session()->getId()]), function (): void {
+                request()->session()->put('guest_cart_session_id', request()->session()->getId());
+            });
     }
 
     /** @return array<string, mixed> */

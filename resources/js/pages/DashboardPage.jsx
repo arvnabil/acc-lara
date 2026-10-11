@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from '../compat/router';
+import { router } from '../compat/router';
 import { useAuth } from '../compat/context';
 import { useWishlist } from '../compat/context';
 import InvoiceModal from '../components/InvoiceModal';
@@ -9,9 +10,6 @@ export default function DashboardPage() {
   const { 
     user, 
     logout, 
-    redeemPointsForWallet, 
-    redeemPointsForVoucher, 
-    claimEwalletPoints,
     markOrderItemReviewed,
     saveAddress, 
     deleteAddress, 
@@ -162,9 +160,9 @@ export default function DashboardPage() {
     },
   ];
   // Revisi 3: Pemisahan data poin & sumber level aktif
-  const pointsBalance = user?.points_balance ?? user?.points ?? 0; // Saldo reward aktif (spendable)
-  const tierPoints = user?.tier_points ?? user?.tierPoints ?? user?.points ?? 0; // Poin kualifikasi tier tahun berjalan
-  const currentTierName = user?.current_tier || user?.memberTier || 'Classic'; // TODO Slice 5: loyalty tier dari backend.
+  const pointsBalance = user?.points_balance ?? 0; // Saldo reward aktif (spendable)
+  const tierPoints = user?.tier_points ?? 0; // Poin kualifikasi tier tahun berjalan
+  const currentTierName = user?.current_tier || 'classic';
   const tierLower = currentTierName.toLowerCase();
 
   // Status badge & perks aktif dibaca dari current_tier (Revisi 3), bukan dihitung ulang dari tier_points
@@ -184,10 +182,8 @@ export default function DashboardPage() {
   }
 
   // Revisi 3: Pemisahan "Nilai Saldo" vs "Dapat Ditukar Sekarang"
-  const nilaiSaldoRupiah = pointsBalance * 100;
-  const monthlyQuotaLeft = user?.monthlyQuotaLeft ?? 5000;
-  const maturePoints = user?.maturePoints ?? pointsBalance; // Poin berusia >= 30 hari
-  const canRedeemNowPoints = maturePoints >= 500 ? Math.min(maturePoints, monthlyQuotaLeft) : 0;
+  const nilaiSaldoRupiah = user?.balance_value_idr ?? 0;
+  const canRedeemNowPoints = user?.redeemable_points ?? 0;
   const canRedeemNowRupiah = canRedeemNowPoints * 100;
 
   const [activeLoyaltyIdx, setActiveLoyaltyIdx] = useState(currentLevelIndex);
@@ -241,25 +237,17 @@ export default function DashboardPage() {
 
   // Point redemption actions
   function handleRedeemWallet(points, rupiah) {
-    if ((user.points || 0) < points) {
-      setFeedback({ type: 'error', message: 'Poin Anda tidak mencukupi untuk penukaran ini.' });
-      return;
-    }
-    const success = redeemPointsForWallet(points, rupiah);
-    if (success) {
-      setFeedback({ type: 'success', message: `Berhasil menukar ${points} Poin menjadi saldo E-Wallet Rp ${rupiah.toLocaleString('id-ID')}!` });
-    }
+    router.post('/loyalty/redeem', { type: 'ewallet', points, provider: ewalletPlatform, account: ewalletPhone, account_name: ewalletAccountName, idempotency_key: crypto.randomUUID() }, {
+      preserveScroll: true,
+      onSuccess: () => setFeedback({ type: 'success', message: `Berhasil menukar ${points} Poin menjadi saldo E-Wallet Rp ${rupiah.toLocaleString('id-ID')}!` }),
+    });
   }
 
   function handleRedeemVoucher(points, voucher) {
-    if ((user.points || 0) < points) {
-      setFeedback({ type: 'error', message: 'Poin Anda tidak mencukupi untuk voucher ini.' });
-      return;
-    }
-    const success = redeemPointsForVoucher(points, voucher);
-    if (success) {
-      setFeedback({ type: 'success', message: `Berhasil menukar ${points} Poin dengan ${voucher.title}!` });
-    }
+    router.post('/loyalty/redeem', { type: 'voucher', points, idempotency_key: crypto.randomUUID() }, {
+      preserveScroll: true,
+      onSuccess: () => setFeedback({ type: 'success', message: `Berhasil menukar ${points} Poin dengan ${voucher.title}!` }),
+    });
   }
 
   // Address Handlers
@@ -351,27 +339,11 @@ export default function DashboardPage() {
       setEwalletFeedback({ type: 'error', message: 'Mohon lengkapi nomor telepon dan nama pemilik akun e-wallet.' });
       return;
     }
-    if ((user?.points || 0) < selectedEwalletPackage.points) {
-      setEwalletFeedback({ type: 'error', message: `Poin Anda tidak mencukupi untuk menukar ${selectedEwalletPackage.points} Poin.` });
-      return;
-    }
-    const result = claimEwalletPoints({
-      platform: ewalletPlatform,
-      phone: ewalletPhone,
-      accountName: ewalletAccountName,
-      points: selectedEwalletPackage.points,
-      rupiah: selectedEwalletPackage.rupiah
-    });
-    if (result.success) {
-      setShowEwalletForm(true);
-      setEwalletFeedback({
-        type: 'success',
-        message: `Klaim saldo ${ewalletPlatform} senilai Rp ${selectedEwalletPackage.rupiah.toLocaleString('id-ID')} berhasil diproses ke nomor ${ewalletPhone} atas nama ${ewalletAccountName}!`
-      });
-    }
+    handleRedeemWallet(selectedEwalletPackage.points, selectedEwalletPackage.rupiah);
+    setShowEwalletForm(true);
   }
 
-  const activeVouchersCount = (user.vouchers || []).length; // TODO Slice 4: vouchers dari backend.
+  const activeVouchersCount = (user.vouchers || []).length;
   const pendingOrdersCount = (user.orders || []).filter(o => o.status === 'Dalam Pengiriman' || o.status === 'Diproses').length;
   const pendingReviewsCount = user.reviewsPending ?? 0; // TODO Slice 6: review backend.
 
@@ -381,11 +353,11 @@ export default function DashboardPage() {
       <div className="w-full bg-[#0a3875] text-white rounded-2xl p-6 sm:p-8 mb-8 relative overflow-hidden shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-3 z-10">
           <div className="inline-block bg-[#164e9a] text-white text-[11px] font-semibold tracking-wider uppercase px-3 py-1 rounded">
-            {user.current_tier ? `MEMBER ${user.current_tier.toUpperCase()}` : (user.memberTier || 'MEMBER CLASSIC')}
+            MEMBER {currentTierName.toUpperCase()}
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">{user.name || 'John Doe'}</h1>
           <p className="text-blue-100 text-[13px] sm:text-[14px]">
-            Member sejak {user.memberSince || '2024'} <span className="mx-1">|</span> {user.email || 'johndoe@email.com'}
+            Member sejak {user.member_since || user.memberSince || ''} <span className="mx-1">|</span> {user.email || ''}
           </p>
         </div>
 
@@ -560,7 +532,7 @@ export default function DashboardPage() {
                   </div>
                   <div>
                     <h4 className="font-bold text-text-primary text-[15px]">Tukar Poin Anda Menjadi Saldo & Diskon</h4>
-                    <p className="text-[13px] text-text-secondary">Anda memiliki <strong className="text-amber-700">{(user.points || 0).toLocaleString('id-ID')} Poin</strong> yang siap ditukarkan!</p>
+                    <p className="text-[13px] text-text-secondary">Anda memiliki <strong className="text-amber-700">{pointsBalance.toLocaleString('id-ID')} Poin</strong> yang siap ditukarkan!</p>
                   </div>
                 </div>
                 <button
@@ -1308,7 +1280,7 @@ export default function DashboardPage() {
                     {/* Right: Badge (Desktop) & Chevron Button */}
                     <div className="flex items-center gap-2 shrink-0">
                       <span className="hidden sm:inline-flex text-[11px] font-bold text-primary bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-lg whitespace-nowrap">
-                        {(user.points || 0).toLocaleString('id-ID')} Poin tersedia
+                        {pointsBalance.toLocaleString('id-ID')} Poin tersedia
                       </span>
                       <div className={`w-8 h-8 rounded-full bg-surface sm:bg-transparent flex items-center justify-center transition-transform duration-200 ${showEwalletForm ? 'rotate-180' : 'rotate-0'}`}>
                         <span className="material-symbols-outlined text-text-secondary text-[22px]">
@@ -1325,7 +1297,7 @@ export default function DashboardPage() {
                       Poin Tersedia:
                     </span>
                     <span className="font-bold text-primary bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md">
-                      {(user.points || 0).toLocaleString('id-ID')} Poin
+                      {pointsBalance.toLocaleString('id-ID')} Poin
                     </span>
                   </div>
                 </button>
@@ -1438,10 +1410,9 @@ export default function DashboardPage() {
                             { points: 500, rupiah: 50000, label: '500 Poin' },
                             { points: 1000, rupiah: 100000, label: '1.000 Poin' },
                             { points: 2500, rupiah: 250000, label: '2.500 Poin' },
-                            { points: 5000, rupiah: 500000, label: '5.000 Poin' },
                           ].map((pkg) => {
                             const isSelected = selectedEwalletPackage.points === pkg.points;
-                            const isAffordable = (user.points || 0) >= pkg.points;
+                            const isAffordable = pointsBalance >= pkg.points;
                             return (
                               <div
                                 key={pkg.points}
@@ -1479,14 +1450,14 @@ export default function DashboardPage() {
                       {/* Submit Button */}
                       <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div className="text-xs text-text-secondary">
-                          Poin saat ini: <strong className="text-primary font-bold">{(user.points || 0).toLocaleString('id-ID')} Pts</strong> • Biaya penukaran: <strong className="text-amber-700 font-bold">{selectedEwalletPackage.points} Pts</strong>
+                          Poin saat ini: <strong className="text-primary font-bold">{pointsBalance.toLocaleString('id-ID')} Pts</strong> • Biaya penukaran: <strong className="text-amber-700 font-bold">{selectedEwalletPackage.points} Pts</strong>
                           <p className="text-[10px] text-text-secondary/80 mt-1 flex items-center gap-1">
                             <span>🛡️ Batas cash-out: Maks. 1x per 30 hari (plafon s/d Rp 500.000) untuk akun terverifikasi.</span>
                           </p>
                         </div>
                         <button
                           type="submit"
-                          disabled={(user.points || 0) < selectedEwalletPackage.points}
+                          disabled={pointsBalance < selectedEwalletPackage.points}
                           className="w-full sm:w-auto px-6 py-2.5 bg-primary hover:bg-primary-hover disabled:bg-gray-200 disabled:text-gray-400 text-white text-xs sm:text-sm font-bold rounded-xl shadow-sm transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                         >
                           <span className="material-symbols-outlined text-[18px]">verified</span>
@@ -1582,16 +1553,15 @@ export default function DashboardPage() {
                     <button
                       onClick={() => handleRedeemVoucher(750, {
                         id: `VCH-${Date.now()}`,
-                        code: `ACC75K-${Math.floor(1000 + Math.random() * 9000)}`,
                         title: 'Voucher Potongan Rp 75.000 Aksesori & Hardware',
                         minOrder: 750000,
                         discount: 75000,
                         expiry: '30 Hari ke depan'
                       })}
-                      disabled={(user.points || 0) < 750}
+                      disabled={pointsBalance < 750}
                       className="mt-4 w-full bg-amber-600 hover:bg-amber-700 disabled:bg-gray-200 disabled:text-gray-400 text-white text-xs font-semibold py-2 rounded-lg transition-colors cursor-pointer"
                     >
-                      {(user.points || 0) >= 750 ? 'Tukar 750 Poin' : 'Poin Kurang'}
+                      {pointsBalance >= 750 ? 'Tukar 750 Poin' : 'Poin Kurang'}
                     </button>
                   </div>
 
@@ -1608,16 +1578,15 @@ export default function DashboardPage() {
                     <button
                       onClick={() => handleRedeemVoucher(1500, {
                         id: `VCH-${Date.now()}`,
-                        code: `AV150K-${Math.floor(1000 + Math.random() * 9000)}`,
                         title: 'Voucher Potongan Rp 150.000 Audio Visual & IT',
                         minOrder: 1500000,
                         discount: 150000,
                         expiry: '30 Hari ke depan'
                       })}
-                      disabled={(user.points || 0) < 1500}
+                      disabled={pointsBalance < 1500}
                       className="mt-4 w-full bg-primary hover:bg-primary-hover disabled:bg-gray-200 disabled:text-gray-400 text-white text-xs font-semibold py-2 rounded-lg transition-colors cursor-pointer"
                     >
-                      {(user.points || 0) >= 1500 ? 'Tukar 1.500 Poin' : 'Poin Kurang'}
+                      {pointsBalance >= 1500 ? 'Tukar 1.500 Poin' : 'Poin Kurang'}
                     </button>
                   </div>
 
@@ -1634,16 +1603,15 @@ export default function DashboardPage() {
                     <button
                       onClick={() => handleRedeemVoucher(3000, {
                         id: `VCH-${Date.now()}`,
-                        code: `ENT300K-${Math.floor(1000 + Math.random() * 9000)}`,
                         title: 'Voucher Potongan Rp 300.000 Solusi Enterprise',
                         minOrder: 3000000,
                         discount: 300000,
                         expiry: '30 Hari ke depan'
                       })}
-                      disabled={(user.points || 0) < 3000}
+                      disabled={pointsBalance < 3000}
                       className="mt-4 w-full bg-purple-700 hover:bg-purple-800 disabled:bg-gray-200 disabled:text-gray-400 text-white text-xs font-semibold py-2 rounded-lg transition-colors cursor-pointer"
                     >
-                      {(user.points || 0) >= 3000 ? 'Tukar 3.000 Poin' : 'Poin Kurang'}
+                      {pointsBalance >= 3000 ? 'Tukar 3.000 Poin' : 'Poin Kurang'}
                     </button>
                   </div>
                 </div>

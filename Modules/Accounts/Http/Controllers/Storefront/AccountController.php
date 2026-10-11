@@ -10,10 +10,11 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Accounts\Models\Address;
 use Modules\Orders\Models\Order;
+use Modules\Loyalty\Services\LoyaltyService;
 
 class AccountController extends Controller
 {
-    public function show(Request $request): Response
+    public function show(Request $request, LoyaltyService $loyalty): Response
     {
         $user = $request->user()->load([
             'addresses',
@@ -22,17 +23,30 @@ class AccountController extends Controller
             'orders.user',
         ]);
 
+        $account = $loyalty->accountForUser($user);
+        $loyaltyProps = $account ? $loyalty->sharedProps($user) : [];
+        $vouchers = $user->company?->vouchers()->whereNull('used_at')->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()))->orderBy('expires_at')->get() ?? collect();
+
         return Inertia::render('Catalog::DashboardPage', [
             'account' => [
                 'addresses' => $user->addresses->map(fn (Address $address): array => $this->serializeAddress($address))->values()->all(),
                 'orders' => $user->orders->map(fn (Order $order): array => $this->serializeOrder($order))->values()->all(),
-                'vouchers' => [],
+                'vouchers' => $vouchers->map(fn ($voucher): array => [
+                    'id' => $voucher->id,
+                    'code' => $voucher->code,
+                    'title' => $voucher->title,
+                    'type' => $voucher->type,
+                    'discount' => (int) $voucher->discount_value,
+                    'minOrder' => (int) $voucher->min_order,
+                    'expiry' => $voucher->expires_at?->format('d M Y'),
+                ])->values()->all(),
                 'wishlist' => $user->wishlists->pluck('product_id')->values()->all(),
                 'wishlistProducts' => $user->wishlists->pluck('product')->filter()->values()->all(),
                 'reviews' => [],
-                'points_balance' => 0,
-                'tier_points' => 0,
-                'current_tier' => 'Classic',
+                'points_balance' => $loyaltyProps['points_balance'] ?? 0,
+                'tier_points' => $loyaltyProps['tier_points'] ?? 0,
+                'current_tier' => $loyaltyProps['current_tier'] ?? 'classic',
+                ...$loyaltyProps,
                 'member_since' => $user->created_at?->format('Y'),
                 'reviewsPending' => 0,
             ],

@@ -6,6 +6,17 @@ use Modules\Promo\Models\PromoCode;
 
 class PricingService
 {
+    /** @return array<string, array<string, int|bool>> */
+    public function quote(iterable $items, ?PromoCode $promo = null): array
+    {
+        $quotes = [];
+        foreach (config('shipping.options', []) as $option) {
+            $quotes[$option['id']] = $this->calculate($items, $promo, (int) $option['price']);
+        }
+
+        return $quotes;
+    }
+
     /** @return array<string, int|bool> */
     public function calculate(iterable $items, ?PromoCode $promo = null, int $shipping = 350000): array
     {

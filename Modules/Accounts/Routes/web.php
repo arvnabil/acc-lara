@@ -6,6 +6,7 @@ use Modules\Accounts\Http\Controllers\Storefront\AccountController;
 use Modules\Accounts\Http\Controllers\Storefront\AuthController;
 use Modules\Cart\Http\Controllers\CartController;
 use Modules\Cart\Http\Controllers\WishlistController;
+use Modules\Orders\Http\Controllers\OrderController;
 
 Route::middleware('web')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
@@ -22,7 +23,12 @@ Route::middleware('web')->group(function () {
         Route::get('/akun', [AccountController::class, 'show'])->name('account');
         Route::get('/wishlist', [WishlistController::class, 'index'])->name('wishlist');
         Route::post('/wishlist/toggle', [WishlistController::class, 'toggle'])->name('wishlist.toggle');
-        Route::get('/checkout', fn () => redirect()->route('cart')->with('info', 'Checkout tersedia pada tahap berikutnya'))->name('checkout');
+        Route::get('/checkout', [OrderController::class, 'checkout'])->name('checkout');
+        Route::get('/lacak-pesanan', [OrderController::class, 'track'])->name('orders.track');
+        Route::post('/checkout', [OrderController::class, 'store'])->name('checkout.store');
+        Route::get('/pembayaran/{number}', [OrderController::class, 'payment'])->name('payment');
+        Route::post('/pembayaran/{number}/saya-sudah-bayar', [OrderController::class, 'paid'])->name('payment.paid');
+        Route::get('/sukses/{number}', [OrderController::class, 'success'])->name('success');
         Route::post('/akun/alamat', [AccountController::class, 'storeAddress'])->name('account.addresses.store');
         Route::put('/akun/alamat/{address}', [AccountController::class, 'updateAddress'])->name('account.addresses.update');
         Route::delete('/akun/alamat/{address}', [AccountController::class, 'destroyAddress'])->name('account.addresses.destroy');

@@ -3,6 +3,7 @@
  * Halaman lacak pesanan — simulasi frontend.
  */
 import { useState } from 'react';
+import { usePage, router as inertiaRouter } from '@inertiajs/react';
 import { Link } from '../compat/router';
 import { useAuth } from '../compat/context';
 
@@ -41,6 +42,7 @@ function StatusBar({ status }) {
 
 export default function LacakPesananPage() {
   const { user } = useAuth();
+  const serverOrder = usePage().props.order;
   const [orderInput, setOrderInput] = useState('');
   const [searched, setSearched] = useState(false);
   const [foundOrder, setFoundOrder] = useState(null);
@@ -48,15 +50,8 @@ export default function LacakPesananPage() {
   function handleSearch(e) {
     e.preventDefault();
     setSearched(true);
-    // Check against user's orders if logged in
-    if (user && user.orders) {
-      const found = user.orders.find(o =>
-        o.id.toLowerCase() === orderInput.trim().toLowerCase()
-      );
-      setFoundOrder(found || null);
-    } else {
-      setFoundOrder(null);
-    }
+    inertiaRouter.get('/lacak-pesanan', { number: orderInput.trim() }, { preserveState: true, preserveScroll: true });
+    setFoundOrder(serverOrder || null);
   }
 
   const demoOrders = user?.orders || [];

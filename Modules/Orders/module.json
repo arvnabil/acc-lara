@@ -4,5 +4,5 @@
   "enabled": true,
   "priority": 20,
   "requires": ["Catalog", "Promo", "Accounts"],
-  "permissions": ["view_any_order", "view_order"]
+  "permissions": ["view_any_order", "view_order", "verify_payment_order", "process_order", "pack_order", "ship_order", "complete_order", "cancel_order", "return_order"]
 }

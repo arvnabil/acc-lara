@@ -3,6 +3,7 @@
  * Halaman Checkout Belanja — Persis sesuai Static Template & Desain UI
  */
 import { useState, useEffect } from 'react';
+import { usePage, router as inertiaRouter } from '@inertiajs/react';
 import { Link, useNavigate } from '../compat/router';
 import { useCart } from '../compat/context';
 import { useAuth } from '../compat/context';
@@ -79,13 +80,15 @@ const BANKS = [
 ];
 
 export default function CheckoutPage() {
+  const pageProps = usePage().props;
+  const serverOrder = pageProps.order;
   const { items, total, itemCount, clearCart, appliedPromo, setAppliedPromo } = useCart();
   const { user, addPoints, saveAddress } = useAuth();
   const navigate = useNavigate();
 
   // Steps: 'checkout' (2) -> 'payment' (3) -> 'success' (4)
-  const [currentStep, setCurrentStep] = useState('checkout');
-  const [orderNumber, setOrderNumber] = useState('ACC-98214');
+  const [currentStep, setCurrentStep] = useState(pageProps.initialStep || 'checkout');
+  const [orderNumber, setOrderNumber] = useState(serverOrder?.number || '');
 
   // Multi-address support (Shopee style)
   const userAddresses = user?.addresses || [];
@@ -252,19 +255,26 @@ export default function CheckoutPage() {
 
   const handleProcessPayment = (e) => {
     e.preventDefault();
-    const newOrderNo = `ACC-${Math.floor(10000 + Math.random() * 90000)}`;
-    setOrderNumber(newOrderNo);
-    setCurrentStep('payment');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    inertiaRouter.post('/checkout', {
+      shipping_address: {
+        recipient: formData.recipientName,
+        phone: formData.phone,
+        province: formData.province,
+        city: formData.city,
+        address: formData.address,
+        postal_code: formData.postalCode,
+        label: 'Checkout',
+      },
+      customer_notes: formData.notes,
+      payment_method: selectedPayment.id,
+      shipping_method: selectedShipping.id,
+      shipping_label: selectedShipping.title,
+      shipping_cost: selectedShipping.price,
+    }, { preserveScroll: true });
   };
 
   const handleFinishPayment = () => {
-    if (earnedPoints > 0 && addPoints) {
-      addPoints(earnedPoints);
-    }
-    setCurrentStep('success');
-    clearCart();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (orderNumber) inertiaRouter.post(`/pembayaran/${orderNumber}/saya-sudah-bayar`, {}, { preserveScroll: true });
   };
 
   // ─────────────────────────────────────────────────────────────────────────────

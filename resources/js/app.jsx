@@ -17,6 +17,7 @@ import DashboardPage from './pages/DashboardPage.jsx';
 import CheckoutPage from './pages/CheckoutPage.jsx';
 import CartPage from './pages/CartPage.jsx';
 import WishlistPage from './pages/WishlistPage.jsx';
+import LacakPesananPage from './pages/LacakPesananPage.jsx';
 
 const pageFiles = {
     'Catalog::HomePage': HomePage,
@@ -32,6 +33,7 @@ const pageFiles = {
     'Catalog::CheckoutPage': CheckoutPage,
     'Catalog::CartPage': CartPage,
     'Catalog::WishlistPage': WishlistPage,
+    'Catalog::LacakPesananPage': LacakPesananPage,
 };
 
 function resolve(name) {

@@ -23,13 +23,15 @@ class OrderStateMachine
         'completed' => ['returned'],
     ];
 
-    public function transition(Order $order, OrderStatus $to, ?int $actorId = null): Order
+    /** @param array<string, mixed> $attributes */
+    public function transition(Order $order, OrderStatus $to, ?int $actorId = null, array $attributes = []): Order
     {
-        return DB::transaction(function () use ($order, $to, $actorId): Order {
+        return DB::transaction(function () use ($order, $to, $actorId, $attributes): Order {
             $from = $order->status->value;
             abort_unless(in_array($to->value, self::TRANSITIONS[$from] ?? [], true), 422, "Transisi {$from} ke {$to->value} tidak valid.");
 
             $order->update([
+                ...$attributes,
                 'status' => $to,
                 'shipped_at' => $to === OrderStatus::Shipped ? now() : $order->shipped_at,
                 'completed_at' => $to === OrderStatus::Completed ? now() : $order->completed_at,

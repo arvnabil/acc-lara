@@ -19,7 +19,14 @@ class MergeGuestCartAfterLogin
 
         $userCart = Cart::firstOrCreate(['user_id' => $event->user->getAuthIdentifier()]);
         foreach ($guest->items as $guestItem) {
-            $existing = $userCart->items()->where('product_id', $guestItem->product_id)->where('variant_id', $guestItem->variant_id)->where('rental_start', $guestItem->rental_start)->where('rental_end', $guestItem->rental_end)->first();
+            $existing = $userCart->items()
+                ->where('product_id', $guestItem->product_id)
+                ->where('variant_id', $guestItem->variant_id)
+                ->where('rental_start', $guestItem->rental_start)
+                ->where('rental_end', $guestItem->rental_end)
+                ->where('rental_start_time', $guestItem->rental_start_time)
+                ->where('rental_end_time', $guestItem->rental_end_time)
+                ->first();
             $stock = $guestItem->variant?->stock ?? $guestItem->product?->stock ?? $guestItem->quantity;
             $quantity = min($stock, ($existing?->quantity ?? 0) + $guestItem->quantity);
             $existing ? $existing->update(['quantity' => $quantity]) : $userCart->items()->create($guestItem->only(['product_id', 'variant_id', 'quantity', 'rental_start', 'rental_end', 'rental_start_time', 'rental_end_time']));

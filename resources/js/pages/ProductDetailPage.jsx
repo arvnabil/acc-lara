@@ -17,7 +17,7 @@ function ReviewSection({ product, user, updateUser }) {
   const STORAGE_KEY = `accommerce_reviews_${product.id}`;
   const [reviews, setReviews] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+      return [];
     } catch {
       return [];
     }
@@ -100,7 +100,6 @@ function ReviewSection({ product, user, updateUser }) {
     };
     const updated = [newReview, ...reviews];
     setReviews(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     setComment("");
     setImages([]);
     setVideo(null);

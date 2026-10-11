@@ -24,8 +24,17 @@ class CartController extends Controller
         $cart->load(['items.product.images', 'items.variant.images', 'promoCode']);
         $pricing = $this->pricing->calculate($cart->items, $cart->promoCode);
 
+        $items = $cart->items->map(fn (CartItem $item): array => $this->serializeItem($item))->values()->all();
+
         return Inertia::render('Catalog::CartPage', [
-            'cart' => ['items' => $cart->items->map(fn (CartItem $item): array => $this->serializeItem($item))->values()->all(), 'itemCount' => $cart->items->sum('quantity'), 'pricing' => $pricing, 'appliedPromo' => $cart->promoCode],
+            'cart' => ['items' => $items, 'total' => $pricing['goods_subtotal'], 'itemCount' => $cart->items->sum('quantity'), 'pricing' => $pricing, 'appliedPromo' => $cart->promoCode],
+            'cart_summary' => [
+                'goods_subtotal' => $pricing['goods_subtotal'],
+                'shipping_estimate' => $pricing['shipping_estimate'],
+                'discount_on_goods' => $pricing['discount_on_goods'],
+                'grand_total' => $pricing['goods_subtotal'] + $pricing['shipping_estimate'] - $pricing['discount_on_goods'],
+                'estimated_points' => $pricing['estimated_points'],
+            ],
         ]);
     }
 
@@ -91,6 +100,6 @@ class CartController extends Controller
     /** @return array<string, mixed> */
     private function serializeItem(CartItem $item): array
     {
-        return ['key' => (string) $item->id, 'id' => $item->id, 'product_id' => $item->product_id, 'variant_id' => $item->variant_id, 'sku' => $item->variant?->sku ?? $item->product->sku, 'name' => $item->variant?->name ?? $item->product->name, 'price' => $item->variant?->sale_price ?: $item->variant?->regular_price ?: ($item->product->sale_price ?: $item->product->regular_price), 'image' => $item->variant?->images->first()?->url ?? $item->product->images->first()?->url, 'quantity' => $item->quantity, 'stock' => $item->variant?->stock ?? $item->product->stock, 'rentalInfo' => $item->rental_start ? ['startDate' => $item->rental_start->toDateString(), 'endDate' => $item->rental_end?->toDateString(), 'startTime' => $item->rental_start_time, 'endTime' => $item->rental_end_time] : null];
+        return ['key' => (string) $item->id, 'id' => $item->id, 'product_id' => $item->product_id, 'variant_id' => $item->variant_id, 'sku' => $item->variant?->sku ?? $item->product->sku, 'name' => $item->variant?->name ?? $item->product->name, 'price' => $item->variant?->sale_price ?: $item->variant?->regular_price ?: ($item->product->sale_price ?: $item->product->regular_price), 'image' => $item->variant?->images->first()?->url ?? $item->product->images->first()?->url, 'quantity' => $item->quantity, 'stock' => $item->variant?->stock ?? $item->product->stock, 'rentalInfo' => $item->rental_start ? ['startDate' => $item->rental_start->toDateString(), 'endDate' => $item->rental_end?->toDateString(), 'startTime' => $item->rental_start_time, 'endTime' => $item->rental_end_time] : null, 'variant' => $item->variant?->toArray()];
     }
 }

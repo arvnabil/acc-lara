@@ -3,12 +3,12 @@
  * Reusable product card – matches user's static template screenshot.
  */
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { formatPrice } from '../services/productService';
-import { useCart } from '../context/CartContext';
-import { useAuth } from '../context/AuthContext';
-import { useWishlist } from '../context/WishlistContext';
-import { useToast } from '../context/ToastContext';
+import { Link, useNavigate } from '../compat/router';
+import { formatPrice } from '../compat/productService';
+import { useCart } from '../compat/context';
+import { useAuth } from '../compat/context';
+import { useWishlist } from '../compat/context';
+import { useToast } from '../compat/context';
 import RentalBookingModal from './RentalBookingModal';
 import LicenseConfigModal from './LicenseConfigModal';
 

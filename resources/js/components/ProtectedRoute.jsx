@@ -1,5 +1,5 @@
-import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { Navigate, useLocation } from '../compat/router';
+import { useAuth } from '../compat/context';
 
 /**
  * ProtectedRoute – redirect ke /login jika belum login.

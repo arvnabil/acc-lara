@@ -3,19 +3,13 @@
  * Detail produk – redesign sesuai static template Accommerce.
  */
 import { useState, useEffect, useRef } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
-import {
-  getProduct,
-  getVariants,
-  getRelatedProducts,
-  getBrands,
-  getCategories,
-  formatPrice,
-} from "../services/productService";
-import { useCart } from "../context/CartContext";
-import { useAuth } from "../context/AuthContext";
-import { useWishlist } from "../context/WishlistContext";
-import { useToast } from "../context/ToastContext";
+import { useParams, Link, useNavigate, router } from "../compat/router";
+import { usePage } from '@inertiajs/react';
+import { formatPrice } from "../compat/productService";
+import { useCart } from "../compat/context";
+import { useAuth } from "../compat/context";
+import { useWishlist } from "../compat/context";
+import { useToast } from "../compat/context";
 import ProductCard from "../components/ProductCard";
 
 // ─── Review Section ────────────────────────────────────────────────────────
@@ -662,6 +656,7 @@ function useCountdown(targetDate) {
 
 // ─── Main Page ─────────────────────────────────────────────────────────────
 export default function ProductDetailPage() {
+  const { product: propProduct, variants: propVariants = [], relatedProducts: propRelated = [], brands: propBrands = [], categories: propCategories = [] } = usePage().props;
   const { slug } = useParams();
   const navigate = useNavigate();
   const { addItem } = useCart();
@@ -676,15 +671,15 @@ export default function ProductDetailPage() {
   })());
   const countdown = useCountdown(flashSaleEnd.current);
 
-  const [product, setProduct] = useState(null);
-  const [variants, setVariants] = useState([]);
+  const product = propProduct;
+  const variants = propVariants;
   const [selectedVariantId, setSelectedVariantId] = useState(null);
-  const [relatedProducts, setRelatedProducts] = useState([]);
+  const relatedProducts = propRelated;
   const [quantity, setQuantity] = useState(1);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [added, setAdded] = useState(false);
-  const [brands, setBrands] = useState([]);
-  const [categories, setCategories] = useState([]);
+  const brands = propBrands;
+  const categories = propCategories;
 
   const todayStr = getISODate();
   const tomorrowStr = addDaysToDate(todayStr, 1);
@@ -713,34 +708,14 @@ export default function ProductDetailPage() {
   }, [slug]);
 
   useEffect(() => {
-    setLoading(true);
-    setProduct(null);
-    setVariants([]);
-    setSelectedVariantId(null);
-    setQuantity(1);
-    setAdded(false);
+    if (!selectedVariantId && variants.length > 0) setSelectedVariantId(variants[0].id);
+  }, [variants, selectedVariantId]);
 
-    Promise.all([getProduct(slug), getBrands(), getCategories()]).then(
-      async ([p, brs, cats]) => {
-        setBrands(brs);
-        setCategories(cats);
-        if (!p) {
-          setLoading(false);
-          return;
-        }
-        setProduct(p);
-
-        if (p.type === "variable") {
-          const vars = await getVariants(p.id);
-          setVariants(vars);
-          if (vars.length > 0) setSelectedVariantId(vars[0].id);
-        }
-        const related = await getRelatedProducts(p, 4);
-        setRelatedProducts(related);
-        setLoading(false);
-      },
-    );
-  }, [slug]);
+  useEffect(() => {
+    const removeStart = router.on('start', () => setLoading(true));
+    const removeFinish = router.on('finish', () => setLoading(false));
+    return () => { removeStart(); removeFinish(); };
+  }, []);
 
   const selectedVariant = variants.find((v) => v.id === selectedVariantId);
   const displayImages = (() => {

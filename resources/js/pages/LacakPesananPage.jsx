@@ -3,8 +3,8 @@
  * Halaman lacak pesanan — simulasi frontend.
  */
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { Link } from '../compat/router';
+import { useAuth } from '../compat/context';
 
 const STATUS_STEPS = ['Pesanan Diterima', 'Diproses', 'Dikemas', 'Dalam Pengiriman', 'Selesai'];
 

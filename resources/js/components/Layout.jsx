@@ -3,11 +3,11 @@
  * Responsive layout: mobile bottom nav + desktop header with mega menu.
  * Safe area, 100dvh, 44px touch targets.
  */
-import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
+import { Outlet, Link, useLocation, useNavigate } from "../compat/router";
+import { usePage } from '@inertiajs/react';
 import { useState, useEffect, useRef } from "react";
-import { useCart } from "../context/CartContext";
-import { getCategories } from "../services/productService";
-import { useAuth } from "../context/AuthContext";
+import { useCart } from "../compat/context";
+import { useAuth } from "../compat/context";
 import Footer from "./Footer";
 
 // ─── Category icons ──────────────────────────────────────────────────────────
@@ -711,13 +711,7 @@ function BottomNav() {
 
 // ─── Layout ──────────────────────────────────────────────────────────────────
 export default function Layout() {
-  const [categories, setCategories] = useState([]);
-
-  useEffect(() => {
-    getCategories().then((cats) =>
-      setCategories(cats.filter((c) => !c.is_addon)),
-    );
-  }, []);
+  const { categoryMenu: categories = [] } = usePage().props;
 
   // Close mega menu & scroll to top on route change
   const location = useLocation();

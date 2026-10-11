@@ -3,8 +3,8 @@
  * TAHAP 3: Katalog dengan filter, sort, search, pagination. State di URL.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { getProducts, getCategories, getBrands, formatPrice } from '../services/productService';
+import { Link, useSearchParams, router } from '../compat/router';
+import { usePage } from '@inertiajs/react';
 import ProductCard from '../components/ProductCard';
 import { ProductGridSkeleton } from '../components/Skeleton';
 
@@ -252,11 +252,9 @@ function Pagination({ page, total_pages, onChange }) {
 
 // ─── Main Page ─────────────────────────────────────────────────────────────
 export default function CatalogPage() {
+  const { products: result, categories, brands } = usePage().props;
   const [searchParams, setSearchParams] = useSearchParams();
-  const [result, setResult] = useState({ data: [], total: 0, page: 1, per_page: 24, total_pages: 0 });
-  const [categories, setCategories] = useState([]);
-  const [brands, setBrands] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
 
   const params = {
@@ -281,19 +279,9 @@ export default function CatalogPage() {
   ].filter(Boolean).length;
 
   useEffect(() => {
-    Promise.all([getCategories(), getBrands()]).then(([cats, brs]) => {
-      setCategories(cats.filter(c => !c.is_addon));
-      setBrands(brs);
-    });
-  }, []);
-
-  useEffect(() => {
-    setLoading(true);
-    getProducts(params).then(res => {
-      setResult(res);
-      setLoading(false);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
+    const removeStart = router.on('start', () => setLoading(true));
+    const removeFinish = router.on('finish', () => { setLoading(false); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+    return () => { removeStart(); removeFinish(); };
   }, [searchParams.toString()]);
 
   function handleParamChange(next) {

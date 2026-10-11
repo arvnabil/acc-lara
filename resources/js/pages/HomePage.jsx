@@ -3,12 +3,7 @@
  * Beranda: hero, kategori unggulan, produk unggulan, produk diskon
  */
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
-import {
-  getCategories, getBrands,
-  getFeaturedProducts, getSaleProducts, getFlashSaleProducts,
-  formatPrice
-} from '../services/productService';
+import { Link } from '../compat/router';
 import ProductCard from '../components/ProductCard';
 import { ProductGridSkeleton } from '../components/Skeleton';
 
@@ -261,46 +256,15 @@ const BENEFITS = [
   { icon: 'support_agent', title: 'SLA Dukungan 4 Jam', desc: 'Engineer bersertifikat siap bantu' },
 ];
 
-export default function HomePage({ featuredProducts: propFeatured, saleProducts: propSale, categories: propCats }) {
-  const [featured, setFeatured] = useState(propFeatured || []);
-  const [sale, setSale] = useState(propSale || []);
-  const [flashSale, setFlashSale] = useState([]);
-  const [cats, setCats] = useState(propCats || []);
-  const [brands, setBrands] = useState([]);
-  const [loading, setLoading] = useState(!propFeatured);
+export default function HomePage({ featuredProducts: featured = [], saleProducts: sale = [], flashSaleProducts: flashSale = [], categories: propCats = [], brands = [] }) {
+  const cats = propCats.filter(c => !c.parent_id && !c.is_addon && !c.is_brand_group).slice(0, 8);
+  const loading = false;
 
   // Flash sale ends at next midnight
   const flashSaleEnd = useRef((() => {
     const d = new Date(); d.setHours(23, 59, 59, 999); return d.getTime();
   })());
   const countdown = useCountdown(flashSaleEnd.current);
-
-  useEffect(() => {
-    if (propFeatured) return;
-    setLoading(true);
-    Promise.all([getFeaturedProducts(8), getSaleProducts(8), getFlashSaleProducts(10), getCategories(), getBrands()])
-      .then(([feat, sal, flash, cats, brands]) => {
-        setFeatured(feat);
-        setSale(sal);
-        setFlashSale(flash);
-        // Top-level non-addon, non-brand categories
-        setCats(cats.filter(c => !c.parent_id && !c.is_addon && !c.is_brand_group).slice(0, 8));
-        setBrands(brands.slice(0, 9));
-      })
-      .finally(() => setLoading(false));
-  }, []);
-
-  // Derive top-level cats when propCats provided
-  useEffect(() => {
-    if (propCats) {
-      setCats(propCats.filter(c => !c.parent_id && !c.is_addon && !c.is_brand_group).slice(0, 8));
-    }
-  }, [propCats]);
-
-  useEffect(() => {
-    if (!propFeatured) return;
-    getBrands().then(b => setBrands(b.slice(0, 9)));
-  }, [propFeatured]);
 
   return (
     <div className="flex flex-col w-full">

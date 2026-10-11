@@ -3,10 +3,10 @@
  * Popup / Bottom Sheet untuk memilih Tanggal & Jam Sewa (Tinggal klik-klik di mobile & desktop).
  */
 import { useState, useId } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { formatPrice } from '../services/productService';
-import { useCart } from '../context/CartContext';
-import { useToast } from '../context/ToastContext';
+import { useNavigate, Link } from '../compat/router';
+import { formatPrice } from '../compat/productService';
+import { useCart } from '../compat/context';
+import { useToast } from '../compat/context';
 
 // Helper date utilities without timezone shift issues
 function getISODate(d = new Date()) {

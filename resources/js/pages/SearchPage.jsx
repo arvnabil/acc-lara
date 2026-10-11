@@ -3,7 +3,7 @@
  * TAHAP 3: Mobile full-screen search with recent history.
  */
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '../compat/router';
 
 const HISTORY_KEY = 'accommerce_search_history';
 

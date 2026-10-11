@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { useWishlist } from '../context/WishlistContext';
-import { getProducts } from '../services/productService';
+import { Link } from '../compat/router';
+import { useWishlist } from '../compat/context';
+import { getProducts } from '../compat/productService';
 import ProductCard from '../components/ProductCard';
 
 export default function WishlistPage() {

@@ -3,7 +3,7 @@
  * Global toast notification system with responsive mobile pill banner.
  */
 import { createContext, useContext, useState, useCallback, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from '../compat/router';
 
 const ToastContext = createContext(null);
 

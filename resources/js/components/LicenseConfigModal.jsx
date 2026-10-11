@@ -3,10 +3,10 @@
  * Popup / Bottom Sheet untuk memilih Durasi Lisensi & Jumlah Seat (Tinggal klik-klik di mobile & desktop).
  */
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { formatPrice } from '../services/productService';
-import { useCart } from '../context/CartContext';
-import { useToast } from '../context/ToastContext';
+import { useNavigate } from '../compat/router';
+import { formatPrice } from '../compat/productService';
+import { useCart } from '../compat/context';
+import { useToast } from '../compat/context';
 
 const LICENSE_DURATIONS = [
   { id: '1m', label: '1 Bulan', multiplier: 0.1, badge: 'Fleksibel' },

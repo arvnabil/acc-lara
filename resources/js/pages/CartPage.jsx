@@ -3,9 +3,9 @@
  * Halaman Keranjang Belanja — Persis sesuai Static Template & Desain UI
  */
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useCart } from '../context/CartContext';
-import { formatPrice } from '../services/productService';
+import { Link } from '../compat/router';
+import { useCart } from '../compat/context';
+import { formatPrice } from '../compat/productService';
 
 const PROMO_CODES = {
   'SAVE10': { code: 'SAVE10', label: 'Diskon 10%', type: 'percent', value: 10 },

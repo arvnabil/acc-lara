@@ -5,8 +5,8 @@
  * Uses drill-down 2-level nav, URL-based level, search, and Back button support.
  */
 import { useState, useEffect, useMemo } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { getCategories } from '../services/productService';
+import { Link, useNavigate, useSearchParams } from '../compat/router';
+import { usePage } from '@inertiajs/react';
 
 function getCatIcon(slug = '') {
   const map = {
@@ -45,21 +45,15 @@ function getCatIcon(slug = '') {
 }
 
 export default function CategoryMenuPage() {
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { categoryMenu = [] } = usePage().props;
+  const categories = categoryMenu;
+  const loading = false;
   const [query, setQuery] = useState('');
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
   // Level stored in URL: ?level=parent_id (or absent = root)
   const activeLevelId = searchParams.get('level') ? parseInt(searchParams.get('level'), 10) : null;
-
-  useEffect(() => {
-    getCategories().then(cats => {
-      setCategories(cats.filter(c => !c.is_addon));
-      setLoading(false);
-    });
-  }, []);
 
   // Build tree: root nodes and children
   const rootNodes = useMemo(

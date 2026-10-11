@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { useWishlist } from '../context/WishlistContext';
-import { getProducts } from '../services/productService';
+import { useNavigate, Link, useLocation } from '../compat/router';
+import { useAuth } from '../compat/context';
+import { useWishlist } from '../compat/context';
+import { getProducts } from '../compat/productService';
 import productsIndex from '../data/products-index.json';
 import InvoiceModal from '../components/InvoiceModal';
 import ReviewModal from '../components/ReviewModal';

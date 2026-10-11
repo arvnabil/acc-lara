@@ -3,10 +3,10 @@
  * Halaman Checkout Belanja — Persis sesuai Static Template & Desain UI
  */
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useCart } from '../context/CartContext';
-import { useAuth } from '../context/AuthContext';
-import { formatPrice } from '../services/productService';
+import { Link, useNavigate } from '../compat/router';
+import { useCart } from '../compat/context';
+import { useAuth } from '../compat/context';
+import { formatPrice } from '../compat/productService';
 
 const PROMO_CODES = {
   'SAVE10': { code: 'SAVE10', label: 'Diskon 10%', type: 'percent', value: 10 },

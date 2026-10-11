@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { useToast } from '../context/ToastContext';
+import { Link, useNavigate, useLocation } from '../compat/router';
+import { useAuth } from '../compat/context';
+import { useToast } from '../compat/context';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');

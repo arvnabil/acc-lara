@@ -108,7 +108,8 @@ export default function ProductCard({ product }) {
   const hasDiscount = Boolean(product.sale_price && product.sale_price < product.regular_price);
   const isFlashSale = Boolean(product?.is_flash_sale || (hasDiscount && !isRental && !isLicense));
 
-  const image = (product.images?.[0] || '').split(',')[0].trim() ||
+  const imageValue = product.images?.[0]?.url ?? product.images?.[0] ?? '';
+  const image = (Array.isArray(imageValue) ? imageValue[0] : String(imageValue)).split(',')[0].trim() ||
     `https://picsum.photos/seed/${product.sku || product.id}/400/400`;
 
   // Wishlist state

@@ -17,12 +17,12 @@ class OrderController
 {
     public function checkout(Request $request, PricingService $pricing): Response|RedirectResponse
     {
-        $cart = Cart::query()->where('user_id', $request->user()->id)->with(['items.product.images', 'items.variant.images', 'promoCode'])->first();
+        $cart = Cart::query()->where('user_id', $request->user()->id)->with(['items.product.images', 'items.variant.images', 'promoCode', 'voucher'])->first();
         if (! $cart || $cart->items->isEmpty()) {
             return redirect()->route('cart');
         }
 
-        $quotes = $pricing->quote($cart->items, $cart->promoCode);
+        $quotes = $pricing->quote($cart->items, $cart->promoCode, $cart->voucher);
 
         return Inertia::render('Catalog::CheckoutPage', [
             'initialStep' => 'checkout',

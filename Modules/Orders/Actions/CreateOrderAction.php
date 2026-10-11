@@ -18,7 +18,7 @@ class CreateOrderAction
     public function execute(Cart $cart, array $data): Order
     {
         return DB::transaction(function () use ($cart, $data): Order {
-            $cart->load(['items.product', 'items.variant', 'promoCode']);
+            $cart->load(['items.product', 'items.variant', 'promoCode', 'voucher']);
             abort_if($cart->items->isEmpty(), 422, 'Keranjang kosong.');
 
             $items = [];
@@ -35,7 +35,7 @@ class CreateOrderAction
 
             $shipping = collect(config('shipping.options', []))->firstWhere('id', $data['shipping_method'] ?? null);
             abort_if(! $shipping, 422, 'Metode pengiriman tidak valid.');
-            $quote = $this->pricing->calculate($cart->items, $cart->promoCode, (int) $shipping['price']);
+            $quote = $this->pricing->calculate($cart->items, $cart->promoCode, (int) $shipping['price'], $cart->voucher);
             $order = Order::create([
                 'number' => 'TMP-'.bin2hex(random_bytes(8)),
                 'user_id' => $cart->user_id,
@@ -50,6 +50,7 @@ class CreateOrderAction
                 'grand_total' => $quote['grand_total'],
                 'has_dummy_price_item' => $quote['has_dummy_price_item'],
                 'promo_code_id' => $cart->promo_code_id,
+                'voucher_id' => $cart->voucher_id,
                 'shipping_method' => $data['shipping_method'] ?? null,
                 'shipping_label' => $shipping['title'],
                 'shipping_address' => $data['shipping_address'],
@@ -68,8 +69,13 @@ class CreateOrderAction
             if ($cart->promoCode) {
                 PromoCode::whereKey($cart->promo_code_id)->lockForUpdate()->increment('used_count');
             }
+            if ($cart->voucher) {
+                $voucher = $cart->voucher()->lockForUpdate()->firstOrFail();
+                abort_if($voucher->used_at !== null, 422, '❌ Kode promo tidak valid atau sudah kedaluwarsa.');
+                $voucher->update(['used_at' => now()]);
+            }
             $cart->items()->delete();
-            $cart->update(['promo_code_id' => null]);
+            $cart->update(['promo_code_id' => null, 'voucher_id' => null]);
 
             return $order->fresh(['items', 'statusHistory']);
         });

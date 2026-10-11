@@ -3,7 +3,7 @@ import { useToast as useOriginalToast } from '../context/ToastContext.jsx';
 
 export function useAuth() {
     const props = usePage().props;
-    const user = props.auth?.user ? { ...props.auth.user, ...(props.account ?? {}) } : null;
+    const user = props.auth?.user ? { ...props.auth.user, ...(props.account ?? {}), ...(props.loyalty ?? {}) } : null;
 
     return {
         user,

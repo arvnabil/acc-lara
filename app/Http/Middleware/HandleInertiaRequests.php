@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Cache;
 use Inertia\Middleware;
 use Modules\Catalog\Services\CatalogQuery;
 use Modules\Cart\Models\Cart;
+use Modules\Loyalty\Services\LoyaltyService;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -43,6 +44,7 @@ class HandleInertiaRequests extends Middleware
             ),
             'cart' => fn (): array => $user ? ['count' => Cart::query()->where('user_id', $user->id)->withCount('items')->first()?->items_count ?? 0] : ['count' => 0],
             'wishlist' => fn (): array => $user ? ['ids' => $user->wishlists()->pluck('product_id')->values()->all()] : ['ids' => []],
+            'loyalty' => fn (): ?array => app(LoyaltyService::class)->sharedProps($user),
         ];
     }
 }

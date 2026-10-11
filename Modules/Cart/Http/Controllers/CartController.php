@@ -22,8 +22,8 @@ class CartController extends Controller
     public function show(Request $request): Response
     {
         $cart = $this->cart($request);
-        $cart->load(['items.product.images', 'items.variant.images', 'promoCode']);
-        $pricing = $this->pricing->calculate($cart->items, $cart->promoCode);
+        $cart->load(['items.product.images', 'items.variant.images', 'promoCode', 'voucher']);
+        $pricing = $this->pricing->calculate($cart->items, $cart->promoCode, (int) config('shipping.cart_estimate', 0), $cart->voucher);
 
         $items = $cart->items->map(fn (CartItem $item): array => $this->serializeItem($item))->values()->all();
 
@@ -33,7 +33,9 @@ class CartController extends Controller
                 'goods_subtotal' => $pricing['goods_subtotal'],
                 'shipping_estimate' => $pricing['shipping_estimate'],
                 'discount_on_goods' => $pricing['discount_on_goods'],
-                'grand_total' => $pricing['goods_subtotal'] + $pricing['shipping_estimate'] - $pricing['discount_on_goods'],
+                'ppn' => $pricing['ppn'],
+                'admin_fee' => $pricing['admin_fee'],
+                'grand_total' => $pricing['grand_total'],
                 'estimated_points' => $pricing['estimated_points'],
             ],
         ]);
@@ -75,22 +77,25 @@ class CartController extends Controller
     public function applyPromo(Request $request): RedirectResponse
     {
         $cart = $this->cart($request);
-        $cart->load(['items.product', 'items.variant']);
+        $cart->load(['items.product', 'items.variant', 'voucher']);
         $data = $request->validate(['code' => ['required', 'string']]);
         $pricing = $this->pricing->calculate($cart->items);
         try {
-            $validated = $this->promos->validate($data['code'], $pricing['goods_subtotal']);
+            $validated = $this->promos->validateForCompany($data['code'], $pricing['goods_subtotal'], $request->user()->company);
         } catch (\InvalidArgumentException $exception) {
             throw ValidationException::withMessages(['code' => $exception->getMessage()]);
         }
-        $cart->update(['promo_code_id' => $validated['promo']->id]);
+        $cart->update(['promo_code_id' => $validated['promo']?->id, 'voucher_id' => $validated['voucher']?->id]);
 
-        return back()->with('success', "✅ Kode {$validated['promo']->code} berhasil diterapkan! ({$validated['promo']->label})");
+        $applied = $validated['promo'] ?? $validated['voucher'];
+        $label = $applied->label ?? $applied->title;
+
+        return back()->with('success', "✅ Kode {$applied->code} berhasil diterapkan! ({$label})");
     }
 
     public function removePromo(Request $request): RedirectResponse
     {
-        $this->cart($request)->update(['promo_code_id' => null]);
+        $this->cart($request)->update(['promo_code_id' => null, 'voucher_id' => null]);
 
         return back();
     }

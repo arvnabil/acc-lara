@@ -3,22 +3,23 @@
 namespace Modules\Cart\Services;
 
 use Modules\Promo\Models\PromoCode;
+use Modules\Promo\Models\Voucher;
 
 class PricingService
 {
     /** @return array<string, array<string, int|bool>> */
-    public function quote(iterable $items, ?PromoCode $promo = null): array
+    public function quote(iterable $items, ?PromoCode $promo = null, ?Voucher $voucher = null): array
     {
         $quotes = [];
         foreach (config('shipping.options', []) as $option) {
-            $quotes[$option['id']] = $this->calculate($items, $promo, (int) $option['price']);
+            $quotes[$option['id']] = $this->calculate($items, $promo, (int) $option['price'], $voucher);
         }
 
         return $quotes;
     }
 
     /** @return array<string, int|bool> */
-    public function calculate(iterable $items, ?PromoCode $promo = null, int $shipping = 350000): array
+    public function calculate(iterable $items, ?PromoCode $promo = null, int $shipping = 350000, ?Voucher $voucher = null): array
     {
         $subtotal = 0;
         $dummy = false;
@@ -38,6 +39,13 @@ class PricingService
             $discount = min($discount, $subtotal);
         }
 
+        $voucherDiscount = 0;
+        if ($voucher?->type === 'fixed') {
+            $voucherDiscount = min((int) $voucher->discount_value, $subtotal - $discount);
+            $discount += $voucherDiscount;
+        }
+        $shippingDiscount = $voucher?->type === 'free_shipping' ? min($shipping, (int) $voucher->discount_value) : 0;
+
         $net = max(0, $subtotal - $discount);
         $ppn = (int) round($subtotal * 0.11);
         $adminFee = 15000;
@@ -46,9 +54,11 @@ class PricingService
             'goods_subtotal' => $subtotal,
             'discount_on_goods' => $discount,
             'ppn' => $ppn,
-            'shipping_estimate' => $shipping,
+            'shipping_estimate' => max(0, $shipping - $shippingDiscount),
+            'voucher_discount_on_shipping' => $shippingDiscount,
+            'voucher_discount_on_goods' => $voucherDiscount,
             'admin_fee' => $adminFee,
-            'grand_total' => $net + $ppn + $shipping + $adminFee,
+            'grand_total' => $net + $ppn + max(0, $shipping - $shippingDiscount) + $adminFee,
             'has_dummy_price_item' => $dummy,
             'estimated_points' => intdiv($net, 10000),
         ];

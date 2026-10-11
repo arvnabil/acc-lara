@@ -532,3 +532,9 @@ Cannot write to file "C:\\development\\accommerce-laravel\\app\\Providers\\AppSe
 - Cart/Wishlist/Pricing routes, server-side price, promo validation, shared cart props, and Login event merge are implemented.
 - Rental dates/times are representable by the existing `cart_items` schema and are priced by rental day count. License configuration remains disabled because the ERD has no license configuration column.
 - Final Slice 3 browser verification and full Pest execution remain required before claiming completion.
+
+### Slice 3 closeout audit
+
+- `resources/js/context/AuthContext.jsx`, `CartContext.jsx`, and `WishlistContext.jsx` had no imports in `resources/js`; they were removed. The only remaining application `localStorage` usage is `accommerce_search_history` in `SearchPage.jsx`.
+- Cart promo, discount, shipping estimate, grand total, and points now come from `cart_summary`; CartPage no longer defines `PROMO_CODES`, `SHIPPING_BASE`, or client discount formulas.
+- Dedicated Wishlist access is `/wishlist`; the dashboard tab remains available and reads the same server-backed products.

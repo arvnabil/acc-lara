@@ -538,3 +538,26 @@ Cannot write to file "C:\\development\\accommerce-laravel\\app\\Providers\\AppSe
 - `resources/js/context/AuthContext.jsx`, `CartContext.jsx`, and `WishlistContext.jsx` had no imports in `resources/js`; they were removed. The only remaining application `localStorage` usage is `accommerce_search_history` in `SearchPage.jsx`.
 - Cart promo, discount, shipping estimate, grand total, and points now come from `cart_summary`; CartPage no longer defines `PROMO_CODES`, `SHIPPING_BASE`, or client discount formulas.
 - Dedicated Wishlist access is `/wishlist`; the dashboard tab remains available and reads the same server-backed products.
+
+## Slice 5 progress
+
+- `6fce307 slice5: loyalty core`: konfigurasi tier/bonus/maturity/expiry, `LoyaltyService`, listener pembuatan akun, scanner/job poin, expiry, benefit bulanan, evaluasi akhir tahun, reset tier, backfill command, dan scheduler.
+- `8dbc735 slice5: vouchers + redeem`: voucher loyalty, validasi voucher per company, pricing free-shipping/fixed voucher, penggunaan voucher di checkout, pembatalan/retur, dan POST `/loyalty/redeem`.
+- `8fb2956 slice5: dashboard`: shared props loyalty, dashboard memakai saldo/tier server, redemption memakai Inertia, dan data voucher company.
+- Tahap D saat ini belum boleh disebut final sebelum pengguna menjalankan sinkronisasi permission dan full suite. Filament sudah memiliki adjustment berbasis `LoyaltyService`, relation manager ledger read-only, serta aksi redemption paid/failed.
+- O-16 tetap terbuka: plafon subsidi Gold/Platinum/Diamond belum ditentukan. Job tidak menerbitkan voucher gratis ongkir untuk tier dengan plafon `null`; tes Diamond ditandai skipped sampai keputusan bisnis diberikan.
+
+### Bukti Slice 5 sementara
+
+```text
+npm run build
+✓ 592 modules transformed.
+✓ built in 1.74s
+```
+
+```text
+php artisan test tests\Feature\Slice5LoyaltyTest.php --compact
+Tests: 12 passed (11 executed, 1 skipped) (19 assertions)
+```
+
+Tes skipped: `Diamond mendapat empat voucher gratis ongkir per bulan` karena O-16 belum diputuskan.

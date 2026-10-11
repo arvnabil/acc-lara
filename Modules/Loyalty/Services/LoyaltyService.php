@@ -4,6 +4,7 @@ namespace Modules\Loyalty\Services;
 
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Modules\Loyalty\Enums\LoyaltyTier;
 use Modules\Loyalty\Models\LoyaltyAccount;
 use Modules\Loyalty\Models\PointLedger;
@@ -220,6 +221,26 @@ class LoyaltyService
                 $account->increment('points_balance', $redemption->points);
             }
             $redemption->update(['status' => 'failed', 'rejection_reason' => $reason, 'processed_at' => now()]);
+        });
+    }
+
+    public function adjust(LoyaltyAccount $account, int $points, string $reason, ?int $actorId = null): PointLedger
+    {
+        return DB::transaction(function () use ($account, $points, $reason, $actorId): PointLedger {
+            $account = LoyaltyAccount::query()->lockForUpdate()->findOrFail($account->id);
+            $ledger = $account->pointLedger()->create([
+                'type' => 'adjustment',
+                'points' => $points,
+                'remaining_points' => max(0, $points),
+                'counts_for_tier' => false,
+                'earned_at' => now(),
+                'expires_at' => $points > 0 ? now()->addMonths((int) config('loyalty.redemption.expiry_months', 24)) : null,
+                'idempotency_key' => 'adjustment:'.Str::uuid()->toString(),
+                'notes' => $reason.($actorId ? " (actor {$actorId})" : ''),
+            ]);
+            $account->increment('points_balance', $points);
+
+            return $ledger;
         });
     }
 

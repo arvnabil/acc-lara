@@ -6,7 +6,7 @@
 import { Outlet, Link, useLocation, useNavigate } from "../compat/router";
 import { usePage } from '@inertiajs/react';
 import { useState, useEffect, useRef } from "react";
-import { useCart } from "../compat/context";
+import { useCart, useWishlist } from "../compat/context";
 import { useAuth } from "../compat/context";
 import Footer from "./Footer";
 
@@ -168,6 +168,7 @@ function MegaMenu({ categories }) {
 // ─── Header ──────────────────────────────────────────────────────────────────
 function Header({ categories }) {
   const { itemCount } = useCart();
+  const { wishlist } = useWishlist();
   const { user } = useAuth();
   const [showMega, setShowMega] = useState(false);
   const [searchQ, setSearchQ] = useState("");
@@ -335,7 +336,7 @@ function Header({ categories }) {
 
             {/* Wishlist */}
             <Link
-              to={user ? "/akun" : "/login"}
+              to={user ? "/wishlist" : "/login"}
               className="hidden lg:flex relative items-center gap-space-xs text-text-primary hover:text-primary px-2 py-1.5 rounded transition-colors"
               aria-label="Wishlist Produk"
             >
@@ -353,9 +354,9 @@ function Header({ categories }) {
                   Wishlist
                 </span>
               </div>
-              {user && (user.wishlist || []).length > 0 && (
+              {wishlist.length > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white font-label-sm text-[11px] min-w-[20px] h-5 rounded-full flex items-center justify-center font-bold px-1">
-                  {(user.wishlist || []).length}
+                  {wishlist.length}
                 </span>
               )}
             </Link>

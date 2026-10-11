@@ -44,7 +44,8 @@ export function useCart() {
 
 export function useWishlist() {
     const ids = usePage().props.wishlist?.ids ?? [];
-    return { wishlist: ids, toggleWishlist: (productId) => inertiaRouter.post('/wishlist/toggle', { product_id: productId }, { preserveScroll: true }), isInWishlist: (productId) => ids.includes(productId) };
+    const keys = ids.map((id) => `prod-${id}`);
+    return { wishlist: keys, toggleWishlist: (productId) => inertiaRouter.post('/wishlist/toggle', { product_id: String(productId).replace(/^prod-/, '') }, { preserveScroll: true }), isInWishlist: (productId) => keys.includes(productId) };
 }
 
 export const useToast = useOriginalToast;

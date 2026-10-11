@@ -33,5 +33,17 @@ class AdminUserSeeder extends Seeder
         $admin->assignRole($adminRole);
 
         $this->command?->info("Admin user siap: {$admin->email}");
+
+        $nabil = User::updateOrCreate(
+            ['email' => 'nabil@activ.co.id'],
+            [
+                'name' => 'Nabil',
+                'password' => Hash::make('123123123'),
+            ],
+        );
+
+        $nabil->assignRole($adminRole);
+
+        $this->command?->info("Admin user siap: {$nabil->email}");
     }
 }

@@ -449,15 +449,15 @@ Content: BannerResource, RfqRequestResource
 
 ## Urutan pengerjaan yang disarankan
 
-1. Slice 2: selesaikan auth client—GET Inertia untuk register/forgot-password, submit login/register ke AuthController, dan shared auth tanpa stub.
-2. Slice 3: Cart, wishlist, checkout, dan voucher; ganti compat cart/wishlist dengan props/controller nyata.
-3. Slice 4: akun/dashboard, loyalty, order tracking, dan review; pindahkan data dashboard dari JSON ke backend.
-4. Slice 5: RFQ/penawaran dan integrasi Content Banner.
+1. Slice 2: auth storefront dan dashboard akun dasar.
+2. Slice 3: cart, wishlist, promo, dan pricing server-side.
+3. Slice 4: checkout, orders, tracking, dan actions OrderResource.
+4. Slice 5: loyalty, poin, tier, voucher benefit, dan redemption.
 5. Slice 6: review storefront dan moderasi yang sudah ada di Filament.
-6. Slice 7: penyempurnaan homepage/banner dinamis.
+6. Slice 7: RFQ/penawaran, Content Banner, Bantuan, dan 404.
 7. Slice 8: PWA, hardening, test HTTP, dan visual regression.
 
-Temuan yang mengubah urutan: `DashboardPage` saat ini mengimpor JSON yang tidak tersedia dan tidak dapat dibiarkan menunggu sampai akhir tanpa mengganti sumber datanya; auth/cart/wishlist compatibility masih stub sehingga semua halaman terlindungi belum dapat dinyatakan selesai.
+Temuan yang mengubah urutan: Loyalty ditempatkan sebelum Review karena Dashboard membutuhkan saldo dan tier server-side. `OrderReturned` kini menjadi event kontrak bersama di `App\Support\Events` agar Orders dan Loyalty tidak saling memiliki event.
 
 ## Audit Slice 2 (per 2026-10-11)
 

@@ -46,7 +46,7 @@ class OrderStateMachine
             }
 
             if ($to === OrderStatus::Returned) {
-                Event::dispatch(new \Modules\Orders\Events\OrderReturned($order));
+                Event::dispatch(new \App\Support\Events\OrderReturned($order));
             }
 
             return $order->fresh();

@@ -51,6 +51,7 @@ class AuthController extends Controller
      */
     public function register(Request $request): JsonResponse|RedirectResponse
     {
+        $request->attributes->set('pre_auth_session_id', $request->session()->getId());
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
@@ -110,6 +111,7 @@ class AuthController extends Controller
      */
     public function login(Request $request): JsonResponse|RedirectResponse
     {
+        $request->attributes->set('pre_auth_session_id', $request->session()->getId());
         $credentials = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],

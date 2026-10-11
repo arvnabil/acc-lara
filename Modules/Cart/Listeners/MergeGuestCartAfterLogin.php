@@ -10,7 +10,7 @@ class MergeGuestCartAfterLogin
     public function handle(Login $event): void
     {
         $request = request();
-        $sessionId = $request->session()->getId();
+        $sessionId = $request->attributes->get('pre_auth_session_id') ?: $request->session()->getId();
         $guest = Cart::query()->with(['items.product', 'items.variant'])->where('session_id', $sessionId)->whereNull('user_id')->first();
 
         if (! $guest) {

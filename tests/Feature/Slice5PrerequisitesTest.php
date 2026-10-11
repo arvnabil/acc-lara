@@ -88,11 +88,11 @@ test('promo min order quota schedule and inactive rules reject with the React er
     $this->actingAs($user)->post('/cart/promo', ['code' => 'RULETEST'])
         ->assertSessionHasErrors(['code' => '❌ Kode promo tidak valid atau sudah kedaluwarsa.']);
 })->with([
-    ['min_order' => 1000000, 'is_active' => true],
-    ['min_order' => 0, 'max_uses' => 1, 'used_count' => 1, 'is_active' => true],
-    ['min_order' => 0, 'valid_from' => '2099-01-01 00:00:00', 'is_active' => true],
-    ['min_order' => 0, 'valid_until' => '2020-01-01 00:00:00', 'is_active' => true],
-    ['min_order' => 0, 'is_active' => false],
+    [['min_order' => 1000000, 'is_active' => true]],
+    [['min_order' => 0, 'max_uses' => 1, 'used_count' => 1, 'is_active' => true]],
+    [['min_order' => 0, 'valid_from' => '2099-01-01 00:00:00', 'is_active' => true]],
+    [['min_order' => 0, 'valid_until' => '2020-01-01 00:00:00', 'is_active' => true]],
+    [['min_order' => 0, 'is_active' => false]],
 ]);
 
 test('rental pricing multiplies the rental days on the server', function (): void {
@@ -201,10 +201,11 @@ test('checkout ignores a forged shipping cost from the client', function (): voi
 });
 
 test('empty checkout redirects to cart and guest checkout redirects to login', function (): void {
+    $this->get('/checkout')->assertRedirect('/login');
+
     $user = prerequisiteCustomer();
 
     $this->actingAs($user)->get('/checkout')->assertRedirect('/keranjang');
-    $this->get('/checkout')->assertRedirect('/login');
 });
 
 test('auto completing shipped orders is idempotent', function (): void {

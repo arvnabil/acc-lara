@@ -4,6 +4,8 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Modules\Accounts\Http\Controllers\Storefront\AccountController;
 use Modules\Accounts\Http\Controllers\Storefront\AuthController;
+use Modules\Cart\Http\Controllers\CartController;
+use Modules\Cart\Http\Controllers\WishlistController;
 
 Route::middleware('web')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
@@ -18,10 +20,19 @@ Route::middleware('web')->group(function () {
 
     Route::middleware('auth')->group(function () {
         Route::get('/akun', [AccountController::class, 'show'])->name('account');
-        Route::get('/checkout', fn () => Inertia::render('Catalog::CheckoutPage'))->name('checkout');
+        Route::get('/wishlist', [WishlistController::class, 'index'])->name('wishlist');
+        Route::post('/wishlist/toggle', [WishlistController::class, 'toggle'])->name('wishlist.toggle');
+        Route::get('/checkout', fn () => redirect()->route('cart')->with('info', 'Checkout tersedia pada tahap berikutnya'))->name('checkout');
         Route::post('/akun/alamat', [AccountController::class, 'storeAddress'])->name('account.addresses.store');
         Route::put('/akun/alamat/{address}', [AccountController::class, 'updateAddress'])->name('account.addresses.update');
         Route::delete('/akun/alamat/{address}', [AccountController::class, 'destroyAddress'])->name('account.addresses.destroy');
         Route::post('/akun/alamat/{address}/utama', [AccountController::class, 'makeAddressDefault'])->name('account.addresses.default');
     });
+
+    Route::get('/keranjang', [CartController::class, 'show'])->name('cart');
+    Route::post('/cart/items', [CartController::class, 'add'])->name('cart.items.add');
+    Route::put('/cart/items/{item}', [CartController::class, 'update'])->name('cart.items.update');
+    Route::delete('/cart/items/{item}', [CartController::class, 'remove'])->name('cart.items.remove');
+    Route::post('/cart/promo', [CartController::class, 'applyPromo'])->name('cart.promo.apply');
+    Route::delete('/cart/promo', [CartController::class, 'removePromo'])->name('cart.promo.remove');
 });

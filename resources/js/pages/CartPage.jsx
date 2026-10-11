@@ -3,22 +3,14 @@
  * Halaman Keranjang Belanja — Persis sesuai Static Template & Desain UI
  */
 import { useState } from 'react';
+import { usePage } from '@inertiajs/react';
 import { Link } from '../compat/router';
 import { useCart } from '../compat/context';
 import { formatPrice } from '../compat/productService';
 
-const PROMO_CODES = {
-  'SAVE10': { code: 'SAVE10', label: 'Diskon 10%', type: 'percent', value: 10 },
-  'ACCOMM25': { code: 'ACCOMM25', label: 'Diskon 25%', type: 'percent', value: 25 },
-  'GRATIS50K': { code: 'GRATIS50K', label: 'Gratis Ongkir + Diskon 50rb', type: 'fixed', value: 400000 },
-  'TECH100K': { code: 'TECH100K', label: 'Diskon Rp 100.000', type: 'fixed', value: 100000 },
-  'NEWMEMBER': { code: 'NEWMEMBER', label: 'Member Baru 15% Off', type: 'percent', value: 15 },
-};
-
-const SHIPPING_BASE = 350000;
-
 export default function CartPage() {
   const { items, removeItem, updateQuantity, total, itemCount, appliedPromo, setAppliedPromo } = useCart();
+  const cartSummary = usePage().props.cart_summary || {};
   const [promoInput, setPromoInput] = useState(appliedPromo?.code || '');
   const [promoMessage, setPromoMessage] = useState(null);
 
@@ -30,18 +22,8 @@ export default function CartPage() {
       return;
     }
 
-    const promo = PROMO_CODES[raw];
-    if (!promo) {
-      setPromoMessage({ type: 'error', text: '❌ Kode promo tidak valid atau sudah kedaluwarsa.' });
-      return;
-    }
-
-    setAppliedPromo(promo);
-    setPromoInput(promo.code);
-    setPromoMessage({
-      type: 'success',
-      text: `✅ Kode ${promo.code} berhasil diterapkan! (${promo.label})`
-    });
+    setAppliedPromo({ code: raw });
+    setPromoInput(raw);
   };
 
   const removePromo = () => {
@@ -51,17 +33,9 @@ export default function CartPage() {
   };
 
   // Discount calculation
-  let discountAmount = 0;
-  if (appliedPromo) {
-    if (appliedPromo.type === 'percent') {
-      discountAmount = Math.round((total * appliedPromo.value) / 100);
-    } else {
-      discountAmount = Math.min(appliedPromo.value, total + SHIPPING_BASE);
-    }
-  }
-
-  const grandTotal = Math.max(0, total + SHIPPING_BASE - discountAmount);
-  const earnedPoints = Math.floor(grandTotal / 10000);
+  const discountAmount = cartSummary.discount_on_goods || 0;
+  const grandTotal = cartSummary.grand_total || 0;
+  const earnedPoints = cartSummary.estimated_points || 0;
 
   if (items.length === 0) {
     return (
@@ -251,7 +225,7 @@ export default function CartPage() {
               </div>
               <div className="flex justify-between">
                 <span>Ongkos Kirim</span>
-                <span className="font-semibold text-text-primary">{formatPrice(SHIPPING_BASE)}</span>
+                <span className="font-semibold text-text-primary">{formatPrice(cartSummary.shipping_estimate || 0)}</span>
               </div>
 
               {discountAmount > 0 && (

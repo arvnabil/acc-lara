@@ -1,29 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
+import { usePage } from '@inertiajs/react';
 import { Link } from '../compat/router';
 import { useWishlist } from '../compat/context';
-import { getProducts } from '../compat/productService';
 import ProductCard from '../components/ProductCard';
 
 export default function WishlistPage() {
   const { wishlist } = useWishlist();
-  const [wishlistProducts, setWishlistProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const wishlistProducts = usePage().props.wishlistProducts ?? [];
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, []);
-
-  useEffect(() => {
-    getProducts({ per_page: 50 }).then(res => {
-      const filtered = (res.data || []).filter(p => 
-        wishlist.includes(`prod-${p.id}`) || 
-        wishlist.includes(p.id) ||
-        wishlist.includes(p.sku)
-      );
-      setWishlistProducts(filtered);
-      setLoading(false);
-    });
-  }, [wishlist]);
 
   return (
     <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 min-h-[70vh]">
@@ -33,9 +20,7 @@ export default function WishlistPage() {
           Wishlist Produk Disimpan
         </h3>
 
-        {loading ? (
-          <div className="py-12 text-center">Loading...</div>
-        ) : wishlistProducts.length > 0 ? (
+        {wishlistProducts.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {wishlistProducts.map((product) => (
               <ProductCard key={product.id} product={product} />

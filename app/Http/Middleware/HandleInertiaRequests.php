@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Inertia\Middleware;
 use Modules\Catalog\Services\CatalogQuery;
+use Modules\Cart\Models\Cart;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -40,6 +41,8 @@ class HandleInertiaRequests extends Middleware
                 now()->addMinutes(10),
                 fn (): array => app(CatalogQuery::class)->categories(),
             ),
+            'cart' => fn (): array => $user ? ['count' => Cart::query()->where('user_id', $user->id)->withCount('items')->first()?->items_count ?? 0] : ['count' => 0],
+            'wishlist' => fn (): array => $user ? ['ids' => $user->wishlists()->pluck('product_id')->values()->all()] : ['ids' => []],
         ];
     }
 }

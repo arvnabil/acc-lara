@@ -37,11 +37,15 @@ export function useAuth() {
 }
 
 export function useCart() {
-    return { items: [], itemCount: 0, totalItems: 0, subtotal: 0, total: 0, cart: null, addItem: () => {}, removeItem: () => {}, updateQuantity: () => {}, clearCart: () => {}, applyPromo: () => {}, removePromo: () => {}, appliedPromo: null };
+    const cart = usePage().props.cart ?? { items: [], count: 0 };
+    const visit = (method, url, data = {}) => inertiaRouter[method](url, data, { preserveScroll: true });
+    return { items: cart.items ?? [], itemCount: cart.count ?? cart.itemCount ?? 0, totalItems: cart.count ?? 0, subtotal: cart.pricing?.goods_subtotal ?? 0, total: cart.pricing?.goods_subtotal ?? 0, cart, appliedPromo: cart.appliedPromo ?? null, addItem: (item, quantity = 1) => visit('post', '/cart/items', { product_id: item.product_id ?? item.id, variant_id: item.variant_id ?? item.variant?.id, quantity, rental_start: item.rentalInfo?.startDate, rental_end: item.rentalInfo?.endDate, rental_start_time: item.rentalInfo?.startTime, rental_end_time: item.rentalInfo?.endTime }), removeItem: (key) => visit('delete', `/cart/items/${key}`), updateQuantity: (key, quantity) => visit('put', `/cart/items/${key}`, { quantity }), clearCart: () => (cart.items ?? []).forEach((item) => visit('delete', `/cart/items/${item.key}`)), applyPromo: (code) => visit('post', '/cart/promo', { code }), removePromo: () => visit('delete', '/cart/promo'), setAppliedPromo: (promo) => promo ? visit('post', '/cart/promo', { code: promo.code }) : visit('delete', '/cart/promo') };
 }
 
 export function useWishlist() {
-    return { wishlist: [], toggleWishlist: () => {}, isInWishlist: () => false };
+    const ids = usePage().props.wishlist?.ids ?? [];
+    const keys = ids.map((id) => `prod-${id}`);
+    return { wishlist: keys, toggleWishlist: (productId) => inertiaRouter.post('/wishlist/toggle', { product_id: String(productId).replace(/^prod-/, '') }, { preserveScroll: true }), isInWishlist: (productId) => keys.includes(productId) };
 }
 
 export const useToast = useOriginalToast;

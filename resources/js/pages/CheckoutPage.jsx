@@ -9,81 +9,16 @@ import { useCart } from '../compat/context';
 import { useAuth } from '../compat/context';
 import { formatPrice } from '../compat/productService';
 
-const PROMO_CODES = {
-  'SAVE10': { code: 'SAVE10', label: 'Diskon 10%', type: 'percent', value: 10 },
-  'ACCOMM25': { code: 'ACCOMM25', label: 'Diskon 25%', type: 'percent', value: 25 },
-  'GRATIS50K': { code: 'GRATIS50K', label: 'Gratis Ongkir + Diskon 50rb', type: 'fixed', value: 400000 },
-  'TECH100K': { code: 'TECH100K', label: 'Diskon Rp 100.000', type: 'fixed', value: 100000 },
-  'NEWMEMBER': { code: 'NEWMEMBER', label: 'Member Baru 15% Off', type: 'percent', value: 15 },
-};
-
-const SHIPPING_OPTIONS = [
-  {
-    id: 'kurir-khusus',
-    title: 'Kurir Khusus IT & AV Accommerce',
-    desc: 'Estimasi 1-2 hari kerja, instalasi dasar gratis',
-    price: 350000,
-  },
-  {
-    id: 'jne-yes',
-    title: 'JNE YES (Yakin Esok Sampai)',
-    desc: 'Estimasi 1 hari kerja, asuransi penuh',
-    price: 450000,
-  },
-  {
-    id: 'sicepat',
-    title: 'SiCepat BEST (Besok Sampai)',
-    desc: 'Estimasi 1-2 hari kerja',
-    price: 280000,
-  },
-  {
-    id: 'pickup',
-    title: 'Ambil di Toko (BSD City)',
-    desc: 'Senin–Jumat 08:30–17:30 WIB',
-    price: 0,
-  },
-];
-
-const PAYMENT_METHODS = [
-  {
-    id: 'qris',
-    title: 'QRIS (Semua Bank & E-Wallet)',
-    desc: 'BCA, Mandiri, BRI, BNI, GoPay, OVO, Dana, ShopeePay — Scan & Bayar Instan',
-    icon: 'qr_code_scanner',
-    badge: 'Instan & Bebas Biaya',
-  },
-  {
-    id: 'va',
-    title: 'Transfer Bank / Virtual Account',
-    desc: 'BCA · Mandiri · BNI · BRI · BSI — verifikasi otomatis',
-    icon: 'account_balance',
-  },
-  {
-    id: 'cc',
-    title: 'Kartu Kredit / Debit',
-    desc: 'Visa · Mastercard · JCB — 0% cicilan 3–12 bulan',
-    icon: 'credit_card',
-  },
-  {
-    id: 'ewallet',
-    title: 'E-Wallet (GoPay / OVO / Dana / ShopeePay)',
-    desc: 'Cashback hingga 30%',
-    icon: 'smartphone',
-  },
-];
-
-const BANKS = [
-  { id: 'Mandiri', name: 'Bank Mandiri Virtual Account', va: '889012348892910' },
-  { id: 'BCA', name: 'BCA Virtual Account', va: '1270012348892910' },
-  { id: 'BNI', name: 'BNI Virtual Account', va: '8898012348892910' },
-  { id: 'BRI', name: 'BRI Virtual Account', va: '0088012348892910' },
-];
-
 export default function CheckoutPage() {
   const pageProps = usePage().props;
   const serverOrder = pageProps.order;
-  const { items, total, itemCount, clearCart, appliedPromo, setAppliedPromo } = useCart();
-  const { user, addPoints, saveAddress } = useAuth();
+  const shippingOptions = pageProps.shippingOptions || [];
+  const paymentMethods = pageProps.paymentMethods || [];
+  const banks = pageProps.banks || [];
+  const quotes = pageProps.quotes || {};
+  const promoCodes = pageProps.promoCodes || [];
+  const { items, itemCount, appliedPromo, setAppliedPromo } = useCart();
+  const { user, saveAddress } = useAuth();
   const navigate = useNavigate();
 
   // Steps: 'checkout' (2) -> 'payment' (3) -> 'success' (4)
@@ -206,35 +141,35 @@ export default function CheckoutPage() {
   }
 
   // Selected Shipping & Payment
-  const [selectedShipping, setSelectedShipping] = useState(SHIPPING_OPTIONS[0]);
-  const [selectedPayment, setSelectedPayment] = useState(PAYMENT_METHODS[0]);
+  const [selectedShipping, setSelectedShipping] = useState(shippingOptions[0]);
+  const [selectedPayment, setSelectedPayment] = useState(paymentMethods[0]);
 
   // Promo code
   const [promoInput, setPromoInput] = useState(appliedPromo?.code || '');
   const [promoMessage, setPromoMessage] = useState(null);
 
   // VA Payment State
-  const [selectedBank, setSelectedBank] = useState(BANKS[0]);
+  const [selectedBank, setSelectedBank] = useState(banks[0]);
   const [copiedVA, setCopiedVA] = useState(false);
   const [copiedAmount, setCopiedAmount] = useState(false);
 
   // Cost calculation
-  const subtotal = total > 0 ? total : 52400000; // fallback if cart empty
-  const ppn = Math.round(subtotal * 0.11);
-  const shippingCost = selectedShipping.price;
-  const adminFee = 15000;
-
-  let discountAmount = 0;
-  if (appliedPromo) {
-    if (appliedPromo.type === 'percent') {
-      discountAmount = Math.round((subtotal * appliedPromo.value) / 100);
-    } else {
-      discountAmount = Math.min(appliedPromo.value, subtotal + ppn + shippingCost + adminFee);
-    }
-  }
-
-  const grandTotal = Math.max(0, subtotal + ppn + shippingCost + adminFee - discountAmount);
-  const earnedPoints = Math.floor(grandTotal / 10000);
+  const selectedQuote = quotes[selectedShipping?.id] || {
+    goods_subtotal: serverOrder?.goods_subtotal,
+    ppn: serverOrder?.ppn,
+    shipping_estimate: serverOrder?.shipping_cost,
+    admin_fee: serverOrder?.admin_fee,
+    discount_on_goods: serverOrder?.discount_on_goods,
+    grand_total: serverOrder?.grand_total,
+    estimated_points: 0,
+  };
+  const subtotal = selectedQuote.goods_subtotal || 0;
+  const ppn = selectedQuote.ppn || 0;
+  const shippingCost = selectedQuote.shipping_estimate || 0;
+  const adminFee = selectedQuote.admin_fee || 0;
+  const discountAmount = selectedQuote.discount_on_goods || 0;
+  const grandTotal = selectedQuote.grand_total || 0;
+  const earnedPoints = selectedQuote.estimated_points || 0;
 
   // Apply promo
   const handleApplyPromo = (codeToApply) => {
@@ -243,14 +178,11 @@ export default function CheckoutPage() {
       setPromoMessage({ type: 'error', text: 'Masukkan kode promo terlebih dahulu.' });
       return;
     }
-    const promo = PROMO_CODES[raw];
-    if (!promo) {
-      setPromoMessage({ type: 'error', text: '❌ Kode promo tidak valid atau sudah kedaluwarsa.' });
-      return;
-    }
-    setAppliedPromo(promo);
-    setPromoInput(promo.code);
-    setPromoMessage({ type: 'success', text: `✅ Kode ${promo.code} berhasil diterapkan! (${promo.label})` });
+    inertiaRouter.post('/cart/promo', { code: raw }, {
+      preserveScroll: true,
+      onSuccess: () => setPromoMessage({ type: 'success', text: `✅ Kode ${raw} berhasil diterapkan!` }),
+      onError: (errors) => setPromoMessage({ type: 'error', text: errors.code || '❌ Kode promo tidak valid atau sudah kedaluwarsa.' }),
+    });
   };
 
   const handleProcessPayment = (e) => {
@@ -269,7 +201,6 @@ export default function CheckoutPage() {
       payment_method: selectedPayment.id,
       shipping_method: selectedShipping.id,
       shipping_label: selectedShipping.title,
-      shipping_cost: selectedShipping.price,
     }, { preserveScroll: true });
   };
 
@@ -451,7 +382,7 @@ export default function CheckoutPage() {
         {/* Payment Method Switcher Tabs on Step 3 */}
         <div className="flex max-w-[420px] mx-auto mb-6 bg-surface p-1 rounded-xl border border-border-subtle">
           <button
-            onClick={() => setSelectedPayment(PAYMENT_METHODS.find(p => p.id === 'qris') || PAYMENT_METHODS[0])}
+            onClick={() => setSelectedPayment(paymentMethods.find(p => p.id === 'qris') || paymentMethods[0])}
             className={`flex-1 py-2 px-3 rounded-lg text-[13px] font-bold flex items-center justify-center gap-1.5 transition-all ${
               isQris
                 ? 'bg-primary text-white shadow-sm'
@@ -462,7 +393,7 @@ export default function CheckoutPage() {
             <span>QRIS</span>
           </button>
           <button
-            onClick={() => setSelectedPayment(PAYMENT_METHODS.find(p => p.id === 'va') || PAYMENT_METHODS[1])}
+            onClick={() => setSelectedPayment(paymentMethods.find(p => p.id === 'va') || paymentMethods[1])}
             className={`flex-1 py-2 px-3 rounded-lg text-[13px] font-bold flex items-center justify-center gap-1.5 transition-all ${
               !isQris
                 ? 'bg-primary text-white shadow-sm'
@@ -622,7 +553,7 @@ export default function CheckoutPage() {
               <div className="bg-surface rounded-xl p-4 sm:p-space-xl max-w-[460px] mx-auto mb-space-xl text-left border border-border-subtle">
                 {/* Bank Selector Tabs */}
                 <div className="flex gap-2 mb-4">
-                  {BANKS.map(bank => (
+                  {banks.map(bank => (
                     <button
                       key={bank.id}
                       onClick={() => setSelectedBank(bank)}
@@ -1004,8 +935,8 @@ export default function CheckoutPage() {
                 Ekspedisi & Pengiriman
               </h3>
               <div className="flex flex-col gap-2">
-                {SHIPPING_OPTIONS.map(opt => {
-                  const isSelected = selectedShipping.id === opt.id;
+                {shippingOptions.map(opt => {
+                  const isSelected = selectedShipping?.id === opt.id;
                   return (
                     <label
                       key={opt.id}
@@ -1045,7 +976,7 @@ export default function CheckoutPage() {
                 Metode Pembayaran
               </h3>
               <div className="flex flex-col gap-2">
-                {PAYMENT_METHODS.map(m => {
+                {paymentMethods.map(m => {
                   const isSelected = selectedPayment.id === m.id;
                   return (
                     <label
@@ -1114,7 +1045,7 @@ export default function CheckoutPage() {
               )}
 
               <div className="mt-3 flex flex-wrap gap-1.5">
-                {['SAVE10', 'ACCOMM25', 'TECH100K', 'NEWMEMBER'].map(chip => (
+                {promoCodes.map(promo => promo.code).map(chip => (
                   <button
                     key={chip}
                     onClick={() => {

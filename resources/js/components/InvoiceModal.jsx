@@ -5,37 +5,28 @@ export default function InvoiceModal({ isOpen, onClose, order, user }) {
 
   if (!isOpen || !order) return null;
 
-  // Extract or fallback invoice details
-  const invoiceNumber = order.invoiceNo || order.id?.replace('ACC-', '') || '445';
-  const orderRef = order.orderRef || `INV/ACM/20260928/${String(invoiceNumber).padStart(4, '0')}`;
-  const orderDate = order.date || 'September 29, 2026';
-  const paymentMethod = order.paymentMethod || 'Transfer Bank Langsung';
+  const invoiceNumber = order.invoiceNo || order.number || order.id || '-';
+  const orderRef = order.orderRef || order.number || '-';
+  const orderDate = order.date || '-';
+  const paymentMethod = order.paymentMethod || '-';
 
   // Address details from order or user default address
   const defaultAddr = (user?.addresses || []).find(a => a.isDefault) || (user?.addresses || [])[0] || {};
-  const recipientName = order.recipientName || user?.name || 'Mohammad Fazri';
-  const streetAddress = order.streetAddress || defaultAddr.address || 'Perumahan Residence one RS 3 No.17, Ciputat';
-  const city = order.city || defaultAddr.city || 'Kota Tangerang Selatan';
-  const province = order.province || defaultAddr.province || 'Banten';
-  const postalCode = order.postalCode || defaultAddr.postalCode || '15310';
-  const email = order.email || user?.email || 'mo.fazri@gmail.com';
-  const phone = order.phone || defaultAddr.phone || '081311523538';
+  const recipientName = order.recipientName || user?.name || '-';
+  const streetAddress = order.streetAddress || defaultAddr.address || '-';
+  const city = order.city || defaultAddr.city || '-';
+  const province = order.province || defaultAddr.province || '-';
+  const postalCode = order.postalCode || defaultAddr.postalCode || '-';
+  const email = order.email || user?.email || '-';
+  const phone = order.phone || defaultAddr.phone || '-';
 
   // Items
-  const items = order.items && order.items.length > 0 ? order.items : [
-    {
-      name: order.title || '8-256 OPS PC Module Intel I7 80 PIN for E Series',
-      sku: 'OPT-IFP-005',
-      weight: '1kg',
-      qty: 1,
-      price: order.total || 23107500
-    }
-  ];
+  const items = order.items || [];
 
   const subtotal = items.reduce((acc, it) => acc + (it.price * (it.qty || 1)), 0);
-  const shippingCost = order.shippingCost || 11000;
-  const insuranceCost = order.insuranceCost || Math.round(subtotal * 0.002) || 51215;
-  const grandTotal = subtotal + shippingCost + insuranceCost;
+  const shippingCost = order.shippingCost || 0;
+  const insuranceCost = order.insuranceCost || 0;
+  const grandTotal = order.total || subtotal + shippingCost + insuranceCost;
 
   function handlePrint() {
     window.print();

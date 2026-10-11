@@ -9,17 +9,23 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Accounts\Models\Address;
+use Modules\Orders\Models\Order;
 
 class AccountController extends Controller
 {
     public function show(Request $request): Response
     {
-        $user = $request->user()->load(['addresses', 'wishlists.product.images']);
+        $user = $request->user()->load([
+            'addresses',
+            'wishlists.product.images',
+            'orders.items',
+            'orders.user',
+        ]);
 
         return Inertia::render('Catalog::DashboardPage', [
             'account' => [
                 'addresses' => $user->addresses->map(fn (Address $address): array => $this->serializeAddress($address))->values()->all(),
-                'orders' => [],
+                'orders' => $user->orders->map(fn (Order $order): array => $this->serializeOrder($order))->values()->all(),
                 'vouchers' => [],
                 'wishlist' => $user->wishlists->pluck('product_id')->values()->all(),
                 'wishlistProducts' => $user->wishlists->pluck('product')->filter()->values()->all(),
@@ -136,6 +142,53 @@ class AccountController extends Controller
             'address' => $address->address,
             'postalCode' => $address->postal_code,
             'isDefault' => $address->is_default,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function serializeOrder(Order $order): array
+    {
+        $address = $order->shipping_address ?? [];
+
+        return [
+            'id' => $order->number,
+            'number' => $order->number,
+            'invoiceNo' => $order->number,
+            'orderRef' => $order->number,
+            'date' => $order->created_at?->format('d F Y'),
+            'status' => match ($order->status?->value) {
+                'pending_payment' => 'Menunggu Pembayaran',
+                'awaiting_verification' => 'Menunggu Verifikasi',
+                'paid' => 'Dibayar',
+                'processing' => 'Diproses',
+                'packed' => 'Dikemas',
+                'shipped' => 'Dalam Pengiriman',
+                'completed' => 'Selesai',
+                'returned' => 'Dikembalikan',
+                'cancelled' => 'Dibatalkan',
+                default => $order->status?->value,
+            },
+            'status_value' => $order->status?->value,
+            'title' => $order->items->first()?->product_name ?? 'Pesanan Accommerce',
+            'total' => (int) $order->grand_total,
+            'paymentMethod' => $order->payment_method,
+            'recipientName' => $address['recipient'] ?? null,
+            'streetAddress' => $address['address'] ?? null,
+            'city' => $address['city'] ?? null,
+            'province' => $address['province'] ?? null,
+            'postalCode' => $address['postal_code'] ?? null,
+            'email' => $order->user?->email,
+            'phone' => $address['phone'] ?? $order->user?->phone,
+            'shippingCost' => (int) $order->shipping_cost,
+            'items' => $order->items->map(fn ($item): array => [
+                'name' => $item->product_name,
+                'sku' => $item->sku,
+                'qty' => (int) $item->quantity,
+                'price' => (int) $item->unit_price,
+                'weight' => null,
+            ])->values()->all(),
         ];
     }
 }

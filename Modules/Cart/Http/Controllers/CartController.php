@@ -5,6 +5,7 @@ namespace Modules\Cart\Http\Controllers;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Cart\Models\Cart;
@@ -77,7 +78,11 @@ class CartController extends Controller
         $cart->load(['items.product', 'items.variant']);
         $data = $request->validate(['code' => ['required', 'string']]);
         $pricing = $this->pricing->calculate($cart->items);
-        $validated = $this->promos->validate($data['code'], $pricing['goods_subtotal']);
+        try {
+            $validated = $this->promos->validate($data['code'], $pricing['goods_subtotal']);
+        } catch (\InvalidArgumentException $exception) {
+            throw ValidationException::withMessages(['code' => $exception->getMessage()]);
+        }
         $cart->update(['promo_code_id' => $validated['promo']->id]);
 
         return back()->with('success', "✅ Kode {$validated['promo']->code} berhasil diterapkan! ({$validated['promo']->label})");

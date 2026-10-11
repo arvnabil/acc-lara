@@ -33,7 +33,9 @@ class CreateOrderAction
                 $items[] = compact('item', 'product', 'variant', 'stockModel', 'unitPrice', 'days');
             }
 
-            $quote = $this->pricing->calculate($cart->items, $cart->promoCode, (int) ($data['shipping_cost'] ?? 0));
+            $shipping = collect(config('shipping.options', []))->firstWhere('id', $data['shipping_method'] ?? null);
+            abort_if(! $shipping, 422, 'Metode pengiriman tidak valid.');
+            $quote = $this->pricing->calculate($cart->items, $cart->promoCode, (int) $shipping['price']);
             $order = Order::create([
                 'number' => 'TMP-'.bin2hex(random_bytes(8)),
                 'user_id' => $cart->user_id,
@@ -49,7 +51,7 @@ class CreateOrderAction
                 'has_dummy_price_item' => $quote['has_dummy_price_item'],
                 'promo_code_id' => $cart->promo_code_id,
                 'shipping_method' => $data['shipping_method'] ?? null,
-                'shipping_label' => $data['shipping_label'] ?? null,
+                'shipping_label' => $shipping['title'],
                 'shipping_address' => $data['shipping_address'],
                 'payment_method' => $data['payment_method'] ?? null,
                 'customer_notes' => $data['customer_notes'] ?? null,

@@ -4,5 +4,5 @@
   "enabled": true,
   "priority": 30,
   "requires": ["Orders", "Promo", "Accounts"],
-  "permissions": ["view_any_loyalty", "view_loyalty"]
+  "permissions": ["view_any_loyalty", "view_loyalty", "adjust_loyalty", "process_redemption"]
 }

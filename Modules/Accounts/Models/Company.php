@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\Loyalty\Models\LoyaltyAccount;
 use Modules\Orders\Models\Order;
 use Modules\Review\Models\Review;
+use Modules\Promo\Models\Voucher;
 
 class Company extends Model
 {
@@ -44,4 +45,5 @@ class Company extends Model
     public function orders(): HasMany { return $this->hasMany(Order::class); }
     public function loyaltyAccount(): HasOne { return $this->hasOne(LoyaltyAccount::class); }
     public function reviews(): HasMany { return $this->hasMany(Review::class); }
+    public function vouchers(): HasMany { return $this->hasMany(Voucher::class); }
 }

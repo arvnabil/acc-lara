@@ -27,4 +27,9 @@ Homestead.yaml
 Thumbs.db
 /Front
 /web-activ
+/.mcp.json
+/boost.json
+/opencode.json
+/.agents/
+/.claude/
 

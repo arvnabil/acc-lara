@@ -3,6 +3,7 @@
 namespace Modules\Catalog\Filament\Resources;
 
 use Filament\Forms;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -27,7 +28,7 @@ class CategoryResource extends Resource
     public static function form(Schema $form): Schema
     {
         return $form->schema([
-            Forms\Components\Section::make()->schema([
+            Section::make()->schema([
                 Forms\Components\TextInput::make('name')
                     ->required()
                     ->maxLength(255)

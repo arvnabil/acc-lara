@@ -3,6 +3,8 @@
 namespace Modules\Catalog\Filament\Resources;
 
 use Filament\Forms;
+use Filament\Schemas\Components\Group;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -33,9 +35,9 @@ class ProductResource extends Resource
     public static function form(Schema $form): Schema
     {
         return $form->schema([
-            Forms\Components\Group::make()->schema([
+            Group::make()->schema([
                 // ── Main Info ──────────────────────────────────────────────
-                Forms\Components\Section::make('Product Info')->schema([
+                Section::make('Product Info')->schema([
                     Forms\Components\TextInput::make('name')
                         ->required()
                         ->maxLength(500)
@@ -77,7 +79,7 @@ class ProductResource extends Resource
                 ])->columns(2),
 
                 // ── Pricing & Stock ────────────────────────────────────────
-                Forms\Components\Section::make('Pricing & Stock')->schema([
+                Section::make('Pricing & Stock')->schema([
                     Forms\Components\TextInput::make('regular_price')
                         ->numeric()
                         ->required()
@@ -116,7 +118,7 @@ class ProductResource extends Resource
                 ])->columns(3),
 
                 // ── Description ────────────────────────────────────────────
-                Forms\Components\Section::make('Description')->schema([
+                Section::make('Description')->schema([
                     Forms\Components\Textarea::make('short_description')
                         ->rows(3)
                         ->columnSpanFull(),
@@ -131,7 +133,7 @@ class ProductResource extends Resource
                 ]),
 
                 // ── Variants ───────────────────────────────────────────────
-                Forms\Components\Section::make('Variants')->schema([
+                Section::make('Variants')->schema([
                     Forms\Components\Repeater::make('variants')
                         ->relationship()
                         ->schema([
@@ -170,7 +172,7 @@ class ProductResource extends Resource
                 ]),
 
                 // ── Images ─────────────────────────────────────────────────
-                Forms\Components\Section::make('Images')->schema([
+                Section::make('Images')->schema([
                     Forms\Components\Repeater::make('images')
                         ->relationship()
                         ->schema([
@@ -193,15 +195,15 @@ class ProductResource extends Resource
             ])->columnSpan(['lg' => 2]),
 
             // ── Sidebar ───────────────────────────────────────────────────
-            Forms\Components\Group::make()->schema([
-                Forms\Components\Section::make('Categories')->schema([
+            Group::make()->schema([
+                Section::make('Categories')->schema([
                     Forms\Components\CheckboxList::make('categories')
                         ->relationship('categories', 'name')
                         ->searchable()
                         ->bulkToggleable(),
                 ]),
 
-                Forms\Components\Section::make('Meta')->schema([
+                Section::make('Meta')->schema([
                     Forms\Components\TextInput::make('source_id')
                         ->label('Source ID')
                         ->maxLength(50)

@@ -476,7 +476,7 @@ CREATE TABLE orders (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT,
     FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE RESTRICT,
     FOREIGN KEY (promo_code_id) REFERENCES promo_codes(id) ON DELETE RESTRICT,
-    FOREIGN KEY (voucher_id) REFERENCES vouchers(id) ON DELETE SET NULL
+    FOREIGN KEY (voucher_id) REFERENCES vouchers(id) ON DELETE RESTRICT
 );
 
 CREATE TABLE order_status_history (

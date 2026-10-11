@@ -49,11 +49,10 @@ test('RESTRICT foreign keys reject deleting referenced parents', function (): vo
 
 });
 
-test('order voucher FK follows the ERD SET NULL rule', function (): void {
+test('order voucher FK is RESTRICT to preserve financial history', function (): void {
     $voucher = Voucher::factory()->create();
-    $order = Order::factory()->create(['voucher_id' => $voucher->id]);
-    $voucher->delete();
-    expect($order->fresh()->voucher_id)->toBeNull();
+    Order::factory()->create(['voucher_id' => $voucher->id]);
+    expect(fn () => $voucher->delete())->toThrow(QueryException::class);
 });
 
 test('voucher quota uniques preserve nullable redeem keys', function (): void {

@@ -46,7 +46,7 @@ return new class extends Migration
             $table->foreign('user_id')->references('id')->on('users')->restrictOnDelete();
             $table->foreign('company_id')->references('id')->on('companies')->restrictOnDelete();
             $table->foreign('promo_code_id')->references('id')->on('promo_codes')->restrictOnDelete();
-            $table->foreign('voucher_id')->references('id')->on('vouchers')->nullOnDelete();
+            $table->foreign('voucher_id')->references('id')->on('vouchers')->restrictOnDelete();
         });
 
         Schema::create('order_status_history', function (Blueprint $table) {

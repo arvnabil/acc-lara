@@ -17,6 +17,11 @@ Keputusan yang sudah diambil (D) dan yang masih terbuka (O). Update tiap ada per
 | D-09 | Kompatibilitas Laravel 13, Filament v4 (4.15.1), Inertia (3.5.1), Spatie Permission (8.3.0) | Terverifikasi dan 100% lulus tes |
 | D-11 | Pilihan O-11: Policy manual per-modul (bukan Spatie Shield) | Lebih ringan, modular, terisolasi per modul tanpa overhead Spatie Shield plugin |
 
+## Penutupan fase D
+
+| O-09 | Selesai: versi paket terpasang diverifikasi | Laravel 13.x, Filament 4.15.1, Inertia Laravel 3.5.1, Spatie Permission 8.3.0, Laravel Boost 2.10.3, Pest 4.7.8, PHPUnit 12.5.33 |
+| O-11 | Selesai: gunakan Policy manual per-modul, bukan Spatie Shield | Resource mengimplementasikan `canViewAny/canView/canCreate/canEdit/canDelete` berbasis permission modul; tidak menambahkan Spatie Shield |
+
 ## Masih terbuka (rekomendasi saya di kolom kanan)
 
 | ID | Pertanyaan | Rekomendasi |

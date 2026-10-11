@@ -216,6 +216,13 @@ class CatalogSeeder extends Seeder
     {
         $variants = json_decode(file_get_contents($this->dataPath . '/variants.json'), true);
 
+        // Six source rows (226-231) omit product_id. Their names identify the
+        // two parent products unambiguously in products-index.json.
+        $orphanProductMap = [
+            226 => 530, 227 => 530, 228 => 530,
+            229 => 531, 230 => 531, 231 => 531,
+        ];
+
         // Map product source_id → local product id
         $productSourceMap = Product::whereNotNull('source_id')->pluck('id', 'source_id')->toArray();
 
@@ -223,7 +230,9 @@ class CatalogSeeder extends Seeder
         $bar->start();
 
         foreach ($variants as $row) {
-            $sourceProductId = isset($row['product_id']) ? (string) $row['product_id'] : null;
+            $sourceProductId = isset($row['product_id'])
+                ? (string) $row['product_id']
+                : (isset($orphanProductMap[$row['id']]) ? (string) $orphanProductMap[$row['id']] : null);
             $localProductId = $sourceProductId ? ($productSourceMap[$sourceProductId] ?? null) : null;
             if (!$localProductId) {
                 $bar->advance();

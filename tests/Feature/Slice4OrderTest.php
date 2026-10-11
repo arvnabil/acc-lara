@@ -46,6 +46,7 @@ test('checkout rejects insufficient stock without creating an order', function (
     $this->actingAs($user)->post('/checkout', [
         'shipping_address' => ['recipient' => 'Nabil', 'phone' => '0812', 'province' => 'Banten', 'city' => 'Tangerang', 'address' => 'Jalan Test', 'postal_code' => '15111'],
         'payment_method' => 'qris',
+        'shipping_method' => 'kurir-khusus',
     ])->assertStatus(422);
 
     expect(Order::count())->toBe(0)->and($product->fresh()->stock)->toBe(1);

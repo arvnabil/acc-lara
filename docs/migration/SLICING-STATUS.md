@@ -523,3 +523,12 @@ Cannot write to file "C:\\development\\accommerce-laravel\\app\\Providers\\AppSe
 
 - UI ForgotPassword mempertahankan langkah OTP sesuai aturan migrasi 1:1, tetapi Laravel Password Broker mengirim tautan reset bertoken. Ini penyimpangan fungsional yang harus diputuskan pada slice auth berikutnya; UI tidak dihapus.
 - Tidak ada klaim HTTP sukses di dokumen ini tanpa menjalankan server dan permintaan aktual.
+
+## Slice 3 progress
+
+- WIP branch: `slice-3-wip`.
+- Tahap A commit: `c16c1d4 slice3: markup migration + shared cart`.
+- Tahap B commit: `434c5b8 slice3: guest merge + review form`.
+- Cart/Wishlist/Pricing routes, server-side price, promo validation, shared cart props, and Login event merge are implemented.
+- Rental dates/times are representable by the existing `cart_items` schema and are priced by rental day count. License configuration remains disabled because the ERD has no license configuration column.
+- Final Slice 3 browser verification and full Pest execution remain required before claiming completion.

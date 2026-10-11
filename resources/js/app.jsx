@@ -7,24 +7,34 @@ import { setOutlet } from './compat/router.jsx';
 import HomePage from './pages/HomePage.jsx';
 import CatalogPage from './pages/CatalogPage.jsx';
 import ProductDetailPage from './pages/ProductDetailPage.jsx';
+import ProductNotFound from './pages/ProductNotFound.jsx';
 import CategoryMenuPage from './pages/CategoryMenuPage.jsx';
 import SearchPage from './pages/SearchPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
+import RegisterPage from './pages/RegisterPage.jsx';
+import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx';
+import DashboardPage from './pages/DashboardPage.jsx';
+import CheckoutPage from './pages/CheckoutPage.jsx';
 
 const pageFiles = {
     'Catalog::HomePage': HomePage,
     'Catalog::CatalogPage': CatalogPage,
     'Catalog::ProductDetailPage': ProductDetailPage,
+    'Catalog::ProductNotFound': ProductNotFound,
     'Catalog::CategoryMenuPage': CategoryMenuPage,
     'Catalog::SearchPage': SearchPage,
     'Catalog::LoginPage': LoginPage,
+    'Catalog::RegisterPage': RegisterPage,
+    'Catalog::ForgotPasswordPage': ForgotPasswordPage,
+    'Catalog::DashboardPage': DashboardPage,
+    'Catalog::CheckoutPage': CheckoutPage,
 };
 
 function resolve(name) {
     const Component = pageFiles[name];
     if (!Component) throw new Error(`Inertia page not found: ${name}`);
 
-    if (!['Catalog::CategoryMenuPage', 'Catalog::SearchPage', 'Catalog::LoginPage'].includes(name)) {
+    if (!['Catalog::CategoryMenuPage', 'Catalog::SearchPage', 'Catalog::LoginPage', 'Catalog::RegisterPage', 'Catalog::ForgotPasswordPage'].includes(name)) {
         Component.layout = (page) => {
             setOutlet(page);
             return <Layout />;

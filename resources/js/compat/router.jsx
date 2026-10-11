@@ -16,7 +16,9 @@ export function NavLink({ to, children, ...props }) {
 }
 
 export function useNavigate() {
-    return (to) => typeof to === 'number' && to === -1 ? window.history.back() : inertiaRouter.visit(hrefFrom(to));
+    return (to, options = {}) => typeof to === 'number' && to === -1
+        ? window.history.back()
+        : inertiaRouter.visit(hrefFrom(to), options);
 }
 
 export function useLocation() {

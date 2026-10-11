@@ -1,10 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 use Modules\Catalog\Http\Controllers\CatalogController;
-
-Route::get('/login', fn () => Inertia::render('Catalog::LoginPage'))->name('login');
 
 Route::get('/', [CatalogController::class, 'home'])->name('home');
 Route::get('/katalog', [CatalogController::class, 'index'])->name('catalog');

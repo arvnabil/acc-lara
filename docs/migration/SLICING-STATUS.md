@@ -458,3 +458,68 @@ Content: BannerResource, RfqRequestResource
 7. Slice 8: PWA, hardening, test HTTP, dan visual regression.
 
 Temuan yang mengubah urutan: `DashboardPage` saat ini mengimpor JSON yang tidak tersedia dan tidak dapat dibiarkan menunggu sampai akhir tanpa mengganti sumber datanya; auth/cart/wishlist compatibility masih stub sehingga semua halaman terlindungi belum dapat dinyatakan selesai.
+
+## Audit Slice 2 (per 2026-10-11)
+
+### Perubahan yang diterapkan
+
+- Routes storefront Accounts sekarang menyediakan GET/POST `/login`, `/register`, `/lupa-password`, `/reset-password/{token}`, POST `/logout`, serta `/akun`, `/checkout`, dan CRUD alamat.
+- `HandleInertiaRequests` membagikan `auth.user` dengan `id`, `name`, `email`, `phone`, `company`, dan `company_role`.
+- Register membuat company perorangan (`npwp = NULL`) dan user `company_role = admin` dalam transaksi, lalu mengirim `CompanyRegistered` setelah commit.
+- Login menolak user tanpa company dengan pesan umum dan memakai rate limiter; `/akun` dan `/checkout` memakai middleware `auth`.
+- Dashboard menerima data akun/alamat dari controller. Orders, vouchers, wishlist, reviews, dan loyalty masih props kosong/stub sesuai batas Slice 2.
+- `resources/js/services/productService.js` dihapus dari runtime.
+
+### Bukti perintah
+
+```text
+npm run build
+✓ 588 modules transformed.
+✓ built in 1.48s
+exit code 0
+```
+
+```text
+php -l Modules/Accounts/Http/Controllers/Storefront/AccountController.php
+No syntax errors detected
+php -l Modules/Accounts/Http/Controllers/Storefront/AuthController.php
+No syntax errors detected
+```
+
+### Status berkas Slice 2
+
+| Berkas | Status | Catatan |
+|---|---|---|
+| LoginPage.jsx | SEBAGIAN | Submit memakai Inertia; Google disembunyikan; source tidak memiliki elemen error khusus sehingga error ditampilkan melalui toast. |
+| RegisterPage.jsx | SEBAGIAN | Submit memakai Inertia; Google disembunyikan; field tetap persis UI React. |
+| ForgotPasswordPage.jsx | SEBAGIAN | Email dan reset memakai broker Laravel; UI OTP lama tetap ada tetapi tidak punya padanan backend OTP. |
+| DashboardPage.jsx | SEBAGIAN | Data demo/localStorage dihapus dari runtime; order/voucher/wishlist/review/loyalty masih props kosong dan TODO slice berikutnya. |
+| AccountController.php | SELESAI untuk cakupan Slice 2 | Show akun dan CRUD alamat milik sendiri, validasi city/postal_code, satu alamat utama. |
+| AuthController.php | SELESAI untuk cakupan Slice 2 | Auth, register company perorangan, rate limit route, intended redirect, broker reset. |
+
+### Dashboard demo yang sengaja tidak dibawa
+
+- `user.orders` masih dibaca oleh markup pada tab orders dan ringkasan; nilainya sekarang `[]` dari `AccountController`.
+- `user.vouchers` masih dibaca pada tab vouchers; nilainya sekarang `[]`.
+- `walletBalance` tidak ditemukan lagi di `DashboardPage.jsx`; tidak ada saldo e-wallet internal yang ditambahkan.
+- Nilai default tier sekarang `Classic` dan poin `0`, dengan TODO Slice 5.
+
+### Tes Slice 2
+
+Tes ditambahkan di `tests/Feature/StorefrontAuthTest.php` untuk registration company/user/event, intended login, penolakan staff tanpa company, rate limit, reset notification, ownership alamat, guest redirect, dan logout. Eksekusi suite tetap harus dilaporkan berdasarkan keluaran aktual runner; build frontend sudah lulus, sedangkan discovery PHPUnit sebelumnya terhenti pada bootstrap `vendor/autoload.php` yang tidak terbuka.
+
+```text
+php artisan test tests/Feature/StorefrontAuthTest.php --compact
+PHPUnit 12.5.33 by Sebastian Bergmann and contributors.
+Cannot open bootstrap script "C:\\development\\accommerce-laravel\\vendor/autoload.php"
+```
+
+```text
+vendor/bin/pint --dirty --format agent
+Cannot write to file "C:\\development\\accommerce-laravel\\app\\Providers\\AppServiceProvider.php" as it is not writable
+```
+
+### Temuan yang belum dapat dinyatakan selesai
+
+- UI ForgotPassword mempertahankan langkah OTP sesuai aturan migrasi 1:1, tetapi Laravel Password Broker mengirim tautan reset bertoken. Ini penyimpangan fungsional yang harus diputuskan pada slice auth berikutnya; UI tidak dihapus.
+- Tidak ada klaim HTTP sukses di dokumen ini tanpa menjalankan server dan permintaan aktual.

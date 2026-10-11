@@ -4,6 +4,7 @@ namespace Modules\Catalog\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Catalog\Models\Product;
@@ -62,7 +63,7 @@ class CatalogController extends Controller
         ]);
     }
 
-    public function show(string $slug): Response
+    public function show(string $slug): Response|HttpResponse
     {
         $product = Product::query()
             ->with([
@@ -79,7 +80,7 @@ class CatalogController extends Controller
             ->first();
 
         if (! $product) {
-            return Inertia::render('Catalog::ProductDetailPage', ['product' => null, 'variants' => [], 'relatedProducts' => [], 'brands' => [], 'categories' => []])
+            return Inertia::render('Catalog::ProductNotFound', ['product' => null, 'variants' => [], 'related' => [], 'relatedProducts' => [], 'brands' => [], 'categories' => []])
                 ->toResponse(request())
                 ->setStatusCode(404);
         }
@@ -96,6 +97,7 @@ class CatalogController extends Controller
         return Inertia::render('Catalog::ProductDetailPage', [
             'product' => $this->serializeProduct($product, true),
             'variants' => $product->variants->map(fn ($variant): array => $this->serializeVariant($variant))->values()->all(),
+            'related' => $related->map(fn (Product $relatedProduct): array => $this->serializeProduct($relatedProduct))->values()->all(),
             'relatedProducts' => $related->map(fn (Product $relatedProduct): array => $this->serializeProduct($relatedProduct))->values()->all(),
             'brands' => collect($this->catalog->brands())->map(fn (array $brand): array => [...$brand, 'logo' => $brand['logo_url']])->all(),
             'categories' => $this->catalog->categories(),

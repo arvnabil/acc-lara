@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate, useLocation } from '../compat/router';
-import { useAuth } from '../compat/context';
+import { Link, router } from '../compat/router';
 import { useToast } from '../compat/context';
 
 export default function LoginPage() {
@@ -9,32 +8,19 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const { login } = useAuth();
   const { showToast } = useToast();
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  const from = location.state?.from || '/akun';
-
   function handleSubmit(e) {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      login({ name: 'Pengguna Demo', email });
-      showToast({ title: 'Login berhasil! Selamat datang 👋', type: 'success' });
-      navigate(from, { replace: true });
-      setLoading(false);
-    }, 1200);
+    router.post('/login', { email, password }, {
+      onSuccess: () => showToast({ title: 'Login berhasil! Selamat datang 👋', type: 'success' }),
+      onError: (errors) => showToast({ title: errors.email || 'Email atau password tidak valid.', type: 'error' }),
+      onFinish: () => setLoading(false),
+    });
   }
 
   function handleGoogleLogin() {
-    setGoogleLoading(true);
-    setTimeout(() => {
-      login({ name: 'Demo Google User', email: 'demo.google@gmail.com', memberTier: 'MEMBER GOLD' });
-      showToast({ title: 'Login dengan Google berhasil! 🎉', type: 'success' });
-      navigate(from, { replace: true });
-      setGoogleLoading(false);
-    }, 1400);
+    return null;
   }
 
   return (
@@ -204,6 +190,7 @@ export default function LoginPage() {
                 type="button"
                 onClick={handleGoogleLogin}
                 disabled={loading || googleLoading}
+                hidden
                 className="w-full bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-bold text-[14px] py-3 rounded-xl transition-all flex items-center justify-center gap-3 shadow-sm active:scale-98"
               >
                 {googleLoading ? (

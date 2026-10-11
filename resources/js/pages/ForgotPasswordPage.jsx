@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from '../compat/router';
+import { Link, router } from '../compat/router';
 
 const STEPS = {
   EMAIL: 'email',
@@ -8,9 +8,9 @@ const STEPS = {
   SUCCESS: 'success',
 };
 
-export default function ForgotPasswordPage() {
-  const [step, setStep] = useState(STEPS.EMAIL);
-  const [email, setEmail] = useState('');
+export default function ForgotPasswordPage({ resetToken = null, email: resetEmail = '' }) {
+  const [step, setStep] = useState(resetToken ? STEPS.NEW_PASSWORD : STEPS.EMAIL);
+  const [email, setEmail] = useState(resetEmail);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -48,32 +48,36 @@ export default function ForgotPasswordPage() {
   function handleSendOtp(e) {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setStep(STEPS.OTP);
-      startResendCooldown();
-    }, 1500);
+    router.post('/lupa-password', { email }, {
+      onSuccess: () => {
+        setStep(STEPS.OTP);
+        startResendCooldown();
+      },
+      onFinish: () => setLoading(false),
+    });
   }
 
   function handleVerifyOtp(e) {
     e.preventDefault();
     const code = otp.join('');
     if (code.length < 6) return;
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setStep(STEPS.NEW_PASSWORD);
-    }, 1200);
+    setLoading(false);
+    setStep(STEPS.NEW_PASSWORD);
   }
 
   function handleResetPassword(e) {
     e.preventDefault();
     if (newPassword !== confirmPassword) return;
+    if (!resetToken) return;
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setStep(STEPS.SUCCESS);
-    }, 1400);
+    router.post(`/reset-password/${resetToken}`, {
+      email,
+      password: newPassword,
+      password_confirmation: confirmPassword,
+    }, {
+      onSuccess: () => setStep(STEPS.SUCCESS),
+      onFinish: () => setLoading(false),
+    });
   }
 
   function startResendCooldown() {
@@ -89,10 +93,10 @@ export default function ForgotPasswordPage() {
   function handleResend() {
     if (resendCooldown > 0) return;
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      startResendCooldown();
-    }, 800);
+    router.post('/lupa-password', { email }, {
+      onSuccess: startResendCooldown,
+      onFinish: () => setLoading(false),
+    });
   }
 
   // ── Step metadata ────────────────────────────────────────────

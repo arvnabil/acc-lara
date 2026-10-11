@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from '../compat/router';
 import { useAuth } from '../compat/context';
 import { useWishlist } from '../compat/context';
-import { getProducts } from '../compat/productService';
-import productsIndex from '../data/products-index.json';
 import InvoiceModal from '../components/InvoiceModal';
 import ReviewModal from '../components/ReviewModal';
 
@@ -166,7 +164,7 @@ export default function DashboardPage() {
   // Revisi 3: Pemisahan data poin & sumber level aktif
   const pointsBalance = user?.points_balance ?? user?.points ?? 0; // Saldo reward aktif (spendable)
   const tierPoints = user?.tier_points ?? user?.tierPoints ?? user?.points ?? 0; // Poin kualifikasi tier tahun berjalan
-  const currentTierName = user?.current_tier || user?.memberTier || 'Platinum';
+  const currentTierName = user?.current_tier || user?.memberTier || 'Classic'; // TODO Slice 5: loyalty tier dari backend.
   const tierLower = currentTierName.toLowerCase();
 
   // Status badge & perks aktif dibaca dari current_tier (Revisi 3), bukan dihitung ulang dari tier_points
@@ -212,11 +210,11 @@ export default function DashboardPage() {
     isDefault: false
   });
 
-  // All reviews from localStorage across all products
+  // TODO Slice 6: load the user's reviews from the backend.
   const [myReviews, setMyReviews] = useState([]);
 
   // Product name -> slug lookup map (built from products-index at mount)
-  const [productSlugs, setProductSlugs] = useState({});
+  const productSlugs = {};
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -227,43 +225,8 @@ export default function DashboardPage() {
   }, [location.search]);
 
   useEffect(() => {
-    // Build name -> slug lookup from products-index (fast, synchronous)
-    const slugMap = {};
-    productsIndex.forEach(p => {
-      slugMap[p.name.toLowerCase()] = p.slug;
-    });
-    setProductSlugs(slugMap);
-  }, []);
-
-  useEffect(() => {
-    if (!user) {
-      navigate('/login');
-    } else {
-      getProducts({ per_page: 50 }).then(res => {
-        const filtered = (res.data || []).filter(p => 
-          wishlist.includes(`prod-${p.id}`) || 
-          wishlist.includes(p.id) ||
-          wishlist.includes(p.sku)
-        );
-        setWishlistProducts(filtered);
-      });
-      // Load all reviews from localStorage
-      const allReviews = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith('accommerce_reviews_')) {
-          try {
-            const items = JSON.parse(localStorage.getItem(key) || '[]');
-            const userItems = items
-              .filter(r => r.userEmail === user.email)
-              .map(r => ({ ...r, productKey: key.replace('accommerce_reviews_', '') }));
-            allReviews.push(...userItems);
-          } catch {}
-        }
-      }
-      setMyReviews(allReviews);
-    }
-  }, [user, navigate, wishlist]);
+    if (user) setMyReviews(user.reviews || []);
+  }, [user]);
 
   if (!user) return null;
 
@@ -328,8 +291,8 @@ export default function DashboardPage() {
 
   function handleSaveAddress(e) {
     e.preventDefault();
-    if (!addrForm.recipientName.trim() || !addrForm.phone.trim() || !addrForm.address.trim()) {
-      setFeedback({ type: 'error', message: 'Mohon lengkapi nama penerima, nomor telepon, dan alamat lengkap.' });
+    if (!addrForm.recipientName.trim() || !addrForm.phone.trim() || !addrForm.city.trim() || !addrForm.address.trim() || !addrForm.postalCode.trim()) {
+      setFeedback({ type: 'error', message: 'Mohon lengkapi nama penerima, nomor telepon, kota, alamat lengkap, dan kode pos.' });
       return;
     }
     saveAddress({
@@ -368,12 +331,6 @@ export default function DashboardPage() {
   }
 
   function handleReviewSubmitted(newReview) {
-    const key = `accommerce_reviews_${newReview.productId}`;
-    try {
-      const existing = JSON.parse(localStorage.getItem(key) || '[]');
-      localStorage.setItem(key, JSON.stringify([newReview, ...existing]));
-    } catch {}
-
     const itemKey = `${newReview.orderId}_${newReview.productName}`;
     if (markOrderItemReviewed) {
       markOrderItemReviewed(itemKey);
@@ -410,9 +367,9 @@ export default function DashboardPage() {
     }
   }
 
-  const activeVouchersCount = user.vouchers ? user.vouchers.length : 3;
+  const activeVouchersCount = (user.vouchers || []).length; // TODO Slice 4: vouchers dari backend.
   const pendingOrdersCount = (user.orders || []).filter(o => o.status === 'Dalam Pengiriman' || o.status === 'Diproses').length;
-  const pendingReviewsCount = user.reviewsPending ?? 12;
+  const pendingReviewsCount = user.reviewsPending ?? 0; // TODO Slice 6: review backend.
 
   return (
     <main className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 min-h-[75vh]">
@@ -420,7 +377,7 @@ export default function DashboardPage() {
       <div className="w-full bg-[#0a3875] text-white rounded-2xl p-6 sm:p-8 mb-8 relative overflow-hidden shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-3 z-10">
           <div className="inline-block bg-[#164e9a] text-white text-[11px] font-semibold tracking-wider uppercase px-3 py-1 rounded">
-            {user.current_tier ? `MEMBER ${user.current_tier.toUpperCase()}` : (user.memberTier || 'MEMBER PLATINUM')}
+            {user.current_tier ? `MEMBER ${user.current_tier.toUpperCase()}` : (user.memberTier || 'MEMBER CLASSIC')}
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">{user.name || 'John Doe'}</h1>
           <p className="text-blue-100 text-[13px] sm:text-[14px]">

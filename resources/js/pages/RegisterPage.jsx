@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from '../compat/router';
-import { useAuth } from '../compat/context';
+import { Link, router } from '../compat/router';
 import { useToast } from '../compat/context';
 
 export default function RegisterPage() {
@@ -11,9 +10,7 @@ export default function RegisterPage() {
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const { login } = useAuth();
   const { showToast } = useToast();
-  const navigate = useNavigate();
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -22,22 +19,15 @@ export default function RegisterPage() {
       return;
     }
     setLoading(true);
-    setTimeout(() => {
-      login({ name, email });
-      showToast({ title: 'Akun berhasil dibuat! Selamat bergabung 🎉', type: 'success' });
-      navigate('/akun');
-      setLoading(false);
-    }, 1300);
+    router.post('/register', { name, email, password }, {
+      onSuccess: () => showToast({ title: 'Akun berhasil dibuat! Selamat bergabung 🎉', type: 'success' }),
+      onError: (errors) => showToast({ title: errors.email || errors.name || 'Registrasi gagal.', type: 'error' }),
+      onFinish: () => setLoading(false),
+    });
   }
 
   function handleGoogleRegister() {
-    setGoogleLoading(true);
-    setTimeout(() => {
-      login({ name: 'Demo Google User', email: 'demo.google@gmail.com', memberTier: 'MEMBER GOLD' });
-      showToast({ title: 'Daftar dengan Google berhasil! 🎉', type: 'success' });
-      navigate('/akun');
-      setGoogleLoading(false);
-    }, 1400);
+    return null;
   }
 
   return (
@@ -233,6 +223,7 @@ export default function RegisterPage() {
                 type="button"
                 onClick={handleGoogleRegister}
                 disabled={loading || googleLoading}
+                hidden
                 className="w-full bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-bold text-[14px] py-3 rounded-xl transition-all flex items-center justify-center gap-3 shadow-sm active:scale-98"
               >
                 {googleLoading ? (

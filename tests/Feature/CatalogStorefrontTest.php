@@ -53,7 +53,7 @@ test('addon products are excluded and missing product returns 404 page', functio
     catalogProduct(['is_addon' => true]);
 
     $this->get('/katalog')->assertInertia(fn ($page) => $page->where('products.total', 0));
-    $this->get('/produk/not-found')->assertStatus(404)->assertInertia(fn ($page) => $page->component('Catalog::ProductNotFound'));
+    $this->get('/produk/not-found')->assertStatus(404)->assertInertia(fn ($page) => $page->component('Catalog::ProductNotFound', false));
 });
 
 test('product detail excludes outlier variants and returns four related products', function (): void {

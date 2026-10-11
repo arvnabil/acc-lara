@@ -11,7 +11,7 @@ test('module manager sorts modules by priority and dependency', function () {
     $enabled = $manager->enabled();
 
     expect($enabled)->toBeInstanceOf(Collection::class);
-    expect($enabled->keys()->toArray())->toEqual(['Accounts', 'Catalog']);
+    expect($enabled->keys()->toArray())->toEqual(['Accounts', 'Catalog', 'Promo', 'Cart', 'Orders', 'Loyalty', 'Review', 'Content']);
 });
 
 test('module manager throws exception on missing dependency', function () {

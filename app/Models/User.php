@@ -8,6 +8,11 @@ use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Modules\Cart\Models\Cart;
+use Modules\Cart\Models\Wishlist;
+use Modules\Orders\Models\Order;
+use Modules\Orders\Models\PaymentProof;
+use Modules\Review\Models\Review;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Modules\Accounts\Models\Address;
@@ -74,4 +79,10 @@ class User extends Authenticatable implements FilamentUser
     {
         return $this->hasMany(Address::class);
     }
+
+    public function carts(): HasMany { return $this->hasMany(Cart::class); }
+    public function wishlists(): HasMany { return $this->hasMany(Wishlist::class); }
+    public function orders(): HasMany { return $this->hasMany(Order::class); }
+    public function paymentProofs(): HasMany { return $this->hasMany(PaymentProof::class, 'verified_by'); }
+    public function reviews(): HasMany { return $this->hasMany(Review::class); }
 }

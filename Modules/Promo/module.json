@@ -1,0 +1,11 @@
+{
+  "name": "Promo",
+  "description": "Kode promo dan voucher yang diterbitkan sistem.",
+  "enabled": true,
+  "priority": 20,
+  "requires": ["Accounts", "Catalog"],
+  "permissions": [
+    "view_any_promo_code", "view_promo_code", "create_promo_code", "update_promo_code", "delete_promo_code",
+    "view_any_voucher", "view_voucher"
+  ]
+}

@@ -2,34 +2,19 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 
 class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. Sync permissions dari modul aktif
-        $this->call(PermissionSeeder::class);
+        // 1. Buat role administrator dan user admin dari .env.
+        $this->call(AdminUserSeeder::class);
 
-        // 2. Buat role administrator dengan semua permission
-        $adminRole = Role::firstOrCreate(['name' => 'administrator', 'guard_name' => 'web']);
-        $adminRole->syncPermissions(Permission::all());
+        // 2. Lima kode promo dasar dari spesifikasi checkout.
+        $this->call(\Modules\Promo\Database\Seeders\PromoSeeder::class);
 
-        // 3. Buat super-admin user untuk panel Filament
-        $admin = User::firstOrCreate(
-            ['email' => 'admin@accommerce.id'],
-            [
-                'name'     => 'Admin Accommerce',
-                'password' => Hash::make('password'),
-            ]
-        );
-        $admin->assignRole('administrator');
-
-        // 4. Seed catalog data dari Front/src/data (Skip during tests to save time)
+        // 3. Seed catalog data dari Front/src/data (Skip during tests to save time)
         if (!app()->environment('testing')) {
             $this->call(\Modules\Catalog\Database\Seeders\CatalogSeeder::class);
         }

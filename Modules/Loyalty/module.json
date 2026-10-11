@@ -1,8 +1,8 @@
 {
   "name": "Loyalty",
   "description": "Poin, tier, penukaran. Aturan: SISTEM_LOYALTI_POIN.md Revisi 4.",
-  "enabled": false,
+  "enabled": true,
   "priority": 30,
-  "requires": ["Orders"],
-  "permissions": ["view_any_loyalty", "view_loyalty", "adjust_loyalty"]
+  "requires": ["Orders", "Promo", "Accounts"],
+  "permissions": ["view_any_loyalty", "view_loyalty"]
 }

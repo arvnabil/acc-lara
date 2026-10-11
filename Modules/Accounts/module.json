@@ -11,8 +11,15 @@
     "create_user",
     "update_user",
     "delete_user",
+    "view_any_role",
+    "view_role",
+    "create_role",
+    "update_role",
+    "delete_role",
     "view_any_company",
     "view_company",
+    "create_company",
+    "delete_company",
     "update_company"
   ]
 }

@@ -2,11 +2,16 @@
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Support\Facades\Event;
 use Modules\Accounts\Events\CompanyRegistered;
 use Modules\Accounts\Models\Company;
 
 uses(Tests\TestCase::class, RefreshDatabase::class);
+
+beforeEach(function (): void {
+    $this->withoutMiddleware(PreventRequestForgery::class);
+});
 
 test('storefront registration creates company and admin user in single transaction and dispatches event', function () {
     Event::fake();

@@ -1,0 +1,29 @@
+<?php
+
+namespace Modules\Loyalty\Filament\Resources;
+
+use Filament\Resources\Resource;
+use Filament\Schemas\Schema;
+use Filament\Tables;
+use Filament\Tables\Table;
+use Modules\Loyalty\Filament\Resources\RedemptionResource\Pages;
+use Modules\Loyalty\Models\Redemption;
+
+class RedemptionResource extends Resource
+{
+    protected static ?string $model = Redemption::class;
+    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-arrow-path';
+    protected static string | \UnitEnum | null $navigationGroup = 'Loyalty';
+    public static function form(Schema $form): Schema { return $form->schema([]); }
+    public static function table(Table $table): Table { return $table->columns([
+        Tables\Columns\TextColumn::make('loyaltyAccount.company.name')->label('Company')->searchable(),
+        Tables\Columns\TextColumn::make('type')->badge(), Tables\Columns\TextColumn::make('points')->numeric(),
+        Tables\Columns\TextColumn::make('amount_idr')->numeric(), Tables\Columns\TextColumn::make('status')->badge(),
+        Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
+    ])->defaultSort('created_at', 'desc'); }
+    public static function getPages(): array { return ['index' => Pages\ListRedemptions::route('/')]; }
+    public static function canViewAny(): bool { return auth()->user()?->can('view_any_loyalty') ?? false; }
+    public static function canView($record): bool { return auth()->user()?->can('view_loyalty') ?? false; }
+    public static function canCreate(): bool { return false; } public static function canEdit($record): bool { return false; }
+    public static function canDelete($record): bool { return false; } public static function canDeleteAny(): bool { return false; }
+}

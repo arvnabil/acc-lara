@@ -1,0 +1,8 @@
+{
+  "name": "Review",
+  "description": "Moderasi ulasan produk.",
+  "enabled": true,
+  "priority": 40,
+  "requires": ["Accounts", "Catalog", "Orders"],
+  "permissions": ["view_any_review", "view_review", "update_review"]
+}

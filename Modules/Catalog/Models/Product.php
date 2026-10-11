@@ -3,15 +3,21 @@
 namespace Modules\Catalog\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Modules\Cart\Models\CartItem;
+use Modules\Orders\Models\OrderItem;
+use Modules\Review\Models\Review;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Product extends Model
 {
-    use SoftDeletes;
+    use HasFactory, SoftDeletes;
+    protected static function newFactory(): ProductFactory { return ProductFactory::new(); }
 
     protected $fillable = [
         'sku',
@@ -71,4 +77,8 @@ class Product extends Model
     {
         return $this->hasMany(StockMovement::class);
     }
+
+    public function cartItems(): HasMany { return $this->hasMany(CartItem::class); }
+    public function orderItems(): HasMany { return $this->hasMany(OrderItem::class); }
+    public function reviews(): HasMany { return $this->hasMany(Review::class); }
 }

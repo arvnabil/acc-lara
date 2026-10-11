@@ -1,0 +1,8 @@
+{
+  "name": "Cart",
+  "description": "Cart dan wishlist.",
+  "enabled": true,
+  "priority": 15,
+  "requires": ["Accounts", "Catalog", "Promo"],
+  "permissions": []
+}

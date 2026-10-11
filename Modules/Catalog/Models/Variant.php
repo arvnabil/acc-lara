@@ -3,14 +3,19 @@
 namespace Modules\Catalog\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Database\Factories\VariantFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Modules\Cart\Models\CartItem;
+use Modules\Orders\Models\OrderItem;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Variant extends Model
 {
-    use SoftDeletes;
+    use HasFactory, SoftDeletes;
+    protected static function newFactory(): VariantFactory { return VariantFactory::new(); }
 
     protected $fillable = [
         'product_id',
@@ -48,4 +53,7 @@ class Variant extends Model
     {
         return $this->hasMany(StockMovement::class);
     }
+
+    public function cartItems(): HasMany { return $this->hasMany(CartItem::class); }
+    public function orderItems(): HasMany { return $this->hasMany(OrderItem::class); }
 }

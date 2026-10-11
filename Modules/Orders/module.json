@@ -1,8 +1,8 @@
 {
   "name": "Orders",
   "description": "Pesanan, status, pembayaran. Satu-satunya pemilik angka harga (PricingService).",
-  "enabled": false,
+  "enabled": true,
   "priority": 20,
-  "requires": ["Catalog"],
-  "permissions": ["view_any_order", "view_order", "update_order"]
+  "requires": ["Catalog", "Promo", "Accounts"],
+  "permissions": ["view_any_order", "view_order"]
 }

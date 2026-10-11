@@ -26,7 +26,7 @@ export default function DashboardPage() {
   
   // Redeem state feedback
   const [feedback, setFeedback] = useState(null);
-  const [wishlistProducts, setWishlistProducts] = useState([]);
+  const [wishlistProducts, setWishlistProducts] = useState(user?.wishlistProducts || []);
 
   // Invoice Modal State
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState(null);
@@ -227,6 +227,10 @@ export default function DashboardPage() {
   useEffect(() => {
     if (user) setMyReviews(user.reviews || []);
   }, [user]);
+
+  useEffect(() => {
+    setWishlistProducts(user?.wishlistProducts || []);
+  }, [user?.wishlistProducts]);
 
   if (!user) return null;
 
@@ -1710,7 +1714,8 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                   {wishlistProducts.map((product) => {
                     const price = product.sale_price || product.regular_price;
-                    const img = (product.images?.[0] || '').split(',')[0].trim();
+                    const imageValue = product.images?.[0]?.url ?? product.images?.[0] ?? '';
+                    const img = (Array.isArray(imageValue) ? imageValue[0] : String(imageValue)).split(',')[0].trim();
                     return (
                       <div key={product.id} className="border border-border-subtle rounded-xl p-3 flex flex-col justify-between hover:shadow-md transition-shadow">
                         <div>

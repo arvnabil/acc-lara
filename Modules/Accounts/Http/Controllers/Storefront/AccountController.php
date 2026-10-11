@@ -14,14 +14,15 @@ class AccountController extends Controller
 {
     public function show(Request $request): Response
     {
-        $user = $request->user()->load('addresses');
+        $user = $request->user()->load(['addresses', 'wishlists.product.images']);
 
         return Inertia::render('Catalog::DashboardPage', [
             'account' => [
                 'addresses' => $user->addresses->map(fn (Address $address): array => $this->serializeAddress($address))->values()->all(),
                 'orders' => [],
                 'vouchers' => [],
-                'wishlist' => [],
+                'wishlist' => $user->wishlists->pluck('product_id')->values()->all(),
+                'wishlistProducts' => $user->wishlists->pluck('product')->filter()->values()->all(),
                 'reviews' => [],
                 'points_balance' => 0,
                 'tier_points' => 0,

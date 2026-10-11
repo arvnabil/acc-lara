@@ -20,7 +20,7 @@ class CatalogSeeder extends Seeder
 
     public function __construct()
     {
-        $this->dataPath = base_path('Front/src/data');
+        $this->dataPath = base_path('Modules/Catalog/Database/data');
     }
 
     public function run(): void

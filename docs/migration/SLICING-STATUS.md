@@ -457,7 +457,7 @@ Content: BannerResource, RfqRequestResource
 6. Slice 7: RFQ/penawaran, Content Banner, Bantuan, dan 404.
 7. Slice 8: PWA, hardening, test HTTP, dan visual regression.
 
-Temuan yang mengubah urutan: Loyalty ditempatkan sebelum Review karena Dashboard membutuhkan saldo dan tier server-side. `OrderReturned` kini menjadi event kontrak bersama di `App\Support\Events` agar Orders dan Loyalty tidak saling memiliki event.
+Temuan yang mengubah urutan: Loyalty ditempatkan sebelum Review karena Dashboard membutuhkan saldo dan tier server-side. `OrderReturned` dimiliki `Modules\Orders\Events`; Loyalty mengimpornya langsung karena Loyalty membutuhkan Orders.
 
 ## Audit Slice 2 (per 2026-10-11)
 
@@ -546,6 +546,9 @@ Cannot write to file "C:\\development\\accommerce-laravel\\app\\Providers\\AppSe
 - `8fb2956 slice5: dashboard`: shared props loyalty, dashboard memakai saldo/tier server, redemption memakai Inertia, dan data voucher company.
 - Tahap D saat ini belum boleh disebut final sebelum pengguna menjalankan sinkronisasi permission dan full suite. Filament sudah memiliki adjustment berbasis `LoyaltyService`, relation manager ledger read-only, serta aksi redemption paid/failed.
 - O-16 tetap terbuka: plafon subsidi Gold/Platinum/Diamond belum ditentukan. Job tidak menerbitkan voucher gratis ongkir untuk tier dengan plafon `null`; tes Diamond ditandai skipped sampai keputusan bisnis diberikan.
+- Keputusan implementasi: `expires_at` adjustment pengembalian poin adalah `now()->addMonths(24)`, mengikuti masa kedaluwarsa poin standar; pengembalian tidak menambah `tier_points`.
+- `walletBalance` tidak digunakan sebagai saldo internal. Dashboard memakai `balance_value_idr`, `redeemable_points`, dan `ewallet_paid_total_idr` dari server.
+- Perubahan teks UI baru pada Slice 5: tidak ada. Perubahan handler hanya mengganti mutasi/demo klien dengan POST Inertia `/loyalty/redeem`; teks existing dipertahankan.
 
 ### Bukti Slice 5 sementara
 

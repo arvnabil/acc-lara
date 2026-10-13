@@ -35,3 +35,10 @@ Keputusan yang sudah diambil (D) dan yang masih terbuka (O). Update tiap ada per
 | O-07 | Sumber `isRental` / `isLicense` | Jadikan kolom `products.product_type` |
 | O-08 | Metode bayar kartu/e-wallet (DAFTAR_FITUR) benar ada? | Cek `CheckoutPage.jsx`; blueprint hanya mencatat QRIS + VA |
 | O-10 | Penggunaan `wc-data-export.json` | Konfirmasi: sumber impor atau sisa |
+
+## Penutupan Slice 5
+
+| ID | Keputusan | Alasan |
+|---|---|---|
+| O-16 | Plafon subsidi Gold, Platinum, dan Diamond sementara Rp50.000 per voucher | Nilai sementara untuk mengaktifkan benefit dan tes; belum keputusan bisnis final. Ditandai `BELUM DIPUTUSKAN, O-16` di konfigurasi. |
+| D-12 | Poin pengembalian memiliki `expires_at` 24 bulan sejak tanggal pengembalian | Konsisten dengan masa kedaluwarsa poin standar dan mencegah poin refund tidak pernah kedaluwarsa. |

@@ -22,9 +22,8 @@ return [
     'shipping_subsidy_idr' => [
         'bronze' => 30000,
         'silver' => 50000,
-        'gold' => null,
-        'platinum' => null,
-        'diamond' => null,
-        '_note' => 'BELUM DIPUTUSKAN untuk Gold, Platinum, Diamond (O-16).',
+        'gold' => 50000, // BELUM DIPUTUSKAN, O-16
+        'platinum' => 50000, // BELUM DIPUTUSKAN, O-16
+        'diamond' => 50000, // BELUM DIPUTUSKAN, O-16
     ],
 ];

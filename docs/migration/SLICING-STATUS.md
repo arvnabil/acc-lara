@@ -545,7 +545,7 @@ Cannot write to file "C:\\development\\accommerce-laravel\\app\\Providers\\AppSe
 - `8dbc735 slice5: vouchers + redeem`: voucher loyalty, validasi voucher per company, pricing free-shipping/fixed voucher, penggunaan voucher di checkout, pembatalan/retur, dan POST `/loyalty/redeem`.
 - `8fb2956 slice5: dashboard`: shared props loyalty, dashboard memakai saldo/tier server, redemption memakai Inertia, dan data voucher company.
 - Tahap D saat ini belum boleh disebut final sebelum pengguna menjalankan sinkronisasi permission dan full suite. Filament sudah memiliki adjustment berbasis `LoyaltyService`, relation manager ledger read-only, serta aksi redemption paid/failed.
-- O-16 tetap terbuka: plafon subsidi Gold/Platinum/Diamond belum ditentukan. Job tidak menerbitkan voucher gratis ongkir untuk tier dengan plafon `null`; tes Diamond ditandai skipped sampai keputusan bisnis diberikan.
+- O-16 diberi plafon sementara Rp50.000 untuk Gold, Platinum, dan Diamond, ditandai `BELUM DIPUTUSKAN, O-16`; tes Diamond sudah aktif.
 - Keputusan implementasi: `expires_at` adjustment pengembalian poin adalah `now()->addMonths(24)`, mengikuti masa kedaluwarsa poin standar; pengembalian tidak menambah `tier_points`.
 - `walletBalance` tidak digunakan sebagai saldo internal. Dashboard memakai `balance_value_idr`, `redeemable_points`, dan `ewallet_paid_total_idr` dari server.
 - Perubahan teks UI baru pada Slice 5: tidak ada. Perubahan handler hanya mengganti mutasi/demo klien dengan POST Inertia `/loyalty/redeem`; teks existing dipertahankan.
@@ -563,7 +563,7 @@ php artisan test tests\Feature\Slice5LoyaltyTest.php --compact
 Tests: 12 passed (11 executed, 1 skipped) (19 assertions)
 ```
 
-Tes skipped: `Diamond mendapat empat voucher gratis ongkir per bulan` karena O-16 belum diputuskan.
+Tes Diamond `Diamond mendapat empat voucher gratis ongkir per bulan` sudah aktif dengan plafon sementara O-16.
 
 ### Koreksi Slice 5 terbaru
 
@@ -572,3 +572,12 @@ Tes skipped: `Diamond mendapat empat voucher gratis ongkir per bulan` karena O-1
 - Ledger FIFO dikunci dengan `lockForUpdate()` dan diurutkan `earned_at`, lalu `id` sebagai tie-breaker.
 - Bonus dihitung memakai `current_tier` sebelum evaluasi upgrade; upgrade dapat melewati beberapa level dan tidak pernah menurunkan tier.
 - Tes berbasis waktu memakai `travelTo` dan tes berat diberi group `slow`.
+
+### Penutupan Slice 5
+
+- Scheduler akhir tahun sekarang hanya memiliki satu jadwal `59 23 31 12 *` yang meng-dispatch `Bus::chain([EvaluateYearEndTierJob, ResetTierPointsJob])`; reset hanya berjalan setelah evaluasi sukses.
+- Ditambahkan pengujian urutan chain, kegagalan evaluasi, retur lintas tahun tanpa `tier_points` negatif, kuota e-wallet bulanan versus voucher, poin kedaluwarsa, saldo/nominal redemption, serta penggunaan voucher saat checkout dan pengembaliannya saat batal/kedaluwarsa.
+- `ProductDetailPage` menggunakan `points_estimate` dari server untuk dua label poin; tidak lagi menghitung estimasi dari harga di JSX.
+- Dashboard menampilkan kartu saldo poin dari `user.balance_value_idr`, nilai yang dapat ditukar dari `user.redeemable_points`, dan riwayat klaim dari `user.ewalletClaims`; `walletBalance` bukan saldo internal.
+- Tidak ada perubahan teks baru pada `DashboardPage`; teks existing dipertahankan.
+- `laravel/boost` tetap berada di `require-dev` sebagai paket pengembangan.

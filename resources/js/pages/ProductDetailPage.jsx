@@ -1127,7 +1127,7 @@ export default function ProductDetailPage() {
                         <span className="material-symbols-outlined text-[16px] animate-pulse">
                           stars
                         </span>
-                        Dapatkan hingga {Math.floor(displayPrice / 10000)} Poin Reward
+                        Dapatkan hingga {selectedVariant?.points_estimate ?? product.points_estimate ?? 0} Poin Reward
                       </div>
                     )}
                     {product.is_dummy_price && (
@@ -1197,7 +1197,7 @@ export default function ProductDetailPage() {
                       <span className="material-symbols-outlined text-[16px] animate-pulse">
                         stars
                       </span>
-                      Dapatkan hingga {Math.floor(displayPrice / 10000)} Poin
+                      Dapatkan hingga {selectedVariant?.points_estimate ?? product.points_estimate ?? 0} Poin
                       Reward
                     </div>
                   )}

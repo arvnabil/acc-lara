@@ -124,6 +124,7 @@ class CatalogController extends Controller
         $data['images'] = $product->images->pluck('url')->values()->all();
         $data['category_ids'] = $product->categories->modelKeys();
         $data['attributes'] = $product->attributes->toArray();
+        $data['points_estimate'] = intdiv(max(0, (int) ($product->sale_price ?: $product->regular_price)), 10000);
 
         if ($detail) {
             $data['variants'] = $product->variants->map(fn ($variant): array => $this->serializeVariant($variant))->values()->all();
@@ -137,6 +138,7 @@ class CatalogController extends Controller
         $data = $variant->toArray();
         $data['images'] = $variant->images->pluck('url')->values()->all();
         $data['attributes'] = $variant->attributes->toArray();
+        $data['points_estimate'] = intdiv(max(0, (int) ($variant->sale_price ?: $variant->regular_price)), 10000);
 
         return $data;
     }

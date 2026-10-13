@@ -10,6 +10,7 @@ use Modules\Cart\Models\Wishlist;
 use Modules\Cart\Services\PricingService;
 use Modules\Catalog\Models\Product;
 use Modules\Catalog\Models\Variant;
+use Modules\Orders\Actions\CreateOrderAction;
 use Modules\Orders\Enums\OrderStatus;
 use Modules\Orders\Events\OrderReturned;
 use Modules\Orders\Jobs\AutoCompleteShippedOrdersJob;
@@ -17,9 +18,10 @@ use Modules\Orders\Jobs\ExpirePendingOrdersJob;
 use Modules\Orders\Models\Order;
 use Modules\Orders\Services\OrderStateMachine;
 use Modules\Promo\Models\PromoCode;
-use Carbon\Carbon;
+use Modules\Promo\Models\Voucher;
+use Tests\TestCase;
 
-uses(Tests\TestCase::class, RefreshDatabase::class);
+uses(TestCase::class, RefreshDatabase::class);
 
 function prerequisiteCustomer(array $attributes = []): User
 {
@@ -177,7 +179,7 @@ test('returning an order restores stock and emits OrderReturned', function (): v
 
 test('created orders have unique sequential ACC numbers', function (): void {
     $user = prerequisiteCustomer();
-    $action = app(\Modules\Orders\Actions\CreateOrderAction::class);
+    $action = app(CreateOrderAction::class);
     $first = $action->execute(prerequisiteCartItem($user, ['stock' => 2]), ['shipping_method' => 'pickup', 'shipping_address' => ['recipient' => 'Nabil'], 'payment_method' => 'qris']);
     $second = $action->execute(prerequisiteCartItem($user, ['stock' => 2]), ['shipping_method' => 'pickup', 'shipping_address' => ['recipient' => 'Nabil'], 'payment_method' => 'qris']);
 
@@ -206,6 +208,42 @@ test('empty checkout redirects to cart and guest checkout redirects to login', f
     $user = prerequisiteCustomer();
 
     $this->actingAs($user)->get('/checkout')->assertRedirect('/keranjang');
+});
+
+test('voucher dipakai saat checkout dan dikembalikan saat order dibatalkan', function (): void {
+    $user = prerequisiteCustomer();
+    $product = Product::factory()->create(['stock' => 2, 'regular_price' => 100000]);
+    $cart = Cart::create(['user_id' => $user->id]);
+    $cart->items()->create(['product_id' => $product->id, 'quantity' => 1]);
+    Voucher::factory()->create(['company_id' => $user->company_id, 'code' => 'VOUCHER-CANCEL', 'type' => 'fixed', 'discount_value' => 10000, 'min_order' => 0]);
+
+    $this->actingAs($user)->post('/cart/promo', ['code' => 'VOUCHER-CANCEL'])->assertRedirect();
+    $response = $this->actingAs($user)->post('/checkout', ['shipping_method' => 'pickup', 'shipping_address' => ['recipient' => 'Nabil', 'phone' => '0812', 'province' => 'Banten', 'city' => 'Tangerang', 'address' => 'Jalan Test', 'postal_code' => '15111'], 'payment_method' => 'qris']);
+    $order = Order::query()->latest('id')->firstOrFail();
+    $voucher = Voucher::where('code', 'VOUCHER-CANCEL')->firstOrFail();
+
+    $response->assertRedirect(route('payment', $order->number));
+    expect($order->voucher_id)->toBe($voucher->id)->and($voucher->fresh()->used_at)->not->toBeNull();
+    app(OrderStateMachine::class)->transition($order, OrderStatus::Cancelled);
+
+    expect($voucher->fresh()->used_at)->toBeNull();
+});
+
+test('voucher dikembalikan saat pesanan kedaluwarsa', function (): void {
+    $user = prerequisiteCustomer();
+    $product = Product::factory()->create(['stock' => 2, 'regular_price' => 100000]);
+    $cart = Cart::create(['user_id' => $user->id]);
+    $cart->items()->create(['product_id' => $product->id, 'quantity' => 1]);
+    $voucher = Voucher::factory()->create(['company_id' => $user->company_id, 'code' => 'VOUCHER-EXPIRE', 'type' => 'fixed', 'discount_value' => 10000, 'min_order' => 0]);
+
+    $this->actingAs($user)->post('/cart/promo', ['code' => $voucher->code])->assertRedirect();
+    $this->actingAs($user)->post('/checkout', ['shipping_method' => 'pickup', 'shipping_address' => ['recipient' => 'Nabil', 'phone' => '0812', 'province' => 'Banten', 'city' => 'Tangerang', 'address' => 'Jalan Test', 'postal_code' => '15111'], 'payment_method' => 'qris'])->assertRedirect();
+    $order = Order::query()->latest('id')->firstOrFail();
+    Order::query()->whereKey($order->id)->update(['created_at' => now()->subDays(2)]);
+
+    app(ExpirePendingOrdersJob::class)->handle(app(OrderStateMachine::class));
+
+    expect($order->fresh()->status)->toBe(OrderStatus::Cancelled)->and($voucher->fresh()->used_at)->toBeNull();
 });
 
 test('auto completing shipped orders is idempotent', function (): void {

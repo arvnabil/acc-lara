@@ -564,3 +564,11 @@ Tests: 12 passed (11 executed, 1 skipped) (19 assertions)
 ```
 
 Tes skipped: `Diamond mendapat empat voucher gratis ongkir per bulan` karena O-16 belum diputuskan.
+
+### Koreksi Slice 5 terbaru
+
+- `OrderReturned` berada di `Modules\Orders\Events\OrderReturned`; Loyalty hanya mengimpor event tersebut.
+- Semua perubahan cache akun loyalti, konsumsi FIFO, expiry, adjustment, reversal, dan redemption dijalankan oleh `LoyaltyService` dalam transaksi dengan lock akun.
+- Ledger FIFO dikunci dengan `lockForUpdate()` dan diurutkan `earned_at`, lalu `id` sebagai tie-breaker.
+- Bonus dihitung memakai `current_tier` sebelum evaluasi upgrade; upgrade dapat melewati beberapa level dan tidak pernah menurunkan tier.
+- Tes berbasis waktu memakai `travelTo` dan tes berat diberi group `slow`.

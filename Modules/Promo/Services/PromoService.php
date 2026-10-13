@@ -39,7 +39,9 @@ class PromoService
                 throw new \InvalidArgumentException('❌ Kode promo tidak valid atau sudah kedaluwarsa.');
             }
 
-            if ($voucher->source === 'tier_bronze' && $company?->loyaltyAccount?->current_tier?->value !== 'bronze') {
+            $tier = $company?->loyaltyAccount?->current_tier?->value;
+            $eligibleTiers = ['bronze', 'silver', 'gold', 'platinum', 'diamond'];
+            if ($voucher->source === 'tier_bronze' && ! in_array($tier, $eligibleTiers, true)) {
                 throw new \InvalidArgumentException('❌ Kode promo tidak valid atau sudah kedaluwarsa.');
             }
 

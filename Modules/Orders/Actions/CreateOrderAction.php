@@ -35,6 +35,8 @@ class CreateOrderAction
 
             $shipping = collect(config('shipping.options', []))->firstWhere('id', $data['shipping_method'] ?? null);
             abort_if(! $shipping, 422, 'Metode pengiriman tidak valid.');
+            $lockedVoucher = $cart->voucher ? $cart->voucher()->lockForUpdate()->firstOrFail() : null;
+            abort_if($lockedVoucher?->used_at !== null, 422, '❌ Kode promo tidak valid atau sudah kedaluwarsa.');
             $quote = $this->pricing->calculate($cart->items, $cart->promoCode, (int) $shipping['price'], $cart->voucher);
             $order = Order::create([
                 'number' => 'TMP-'.bin2hex(random_bytes(8)),
@@ -70,9 +72,7 @@ class CreateOrderAction
                 PromoCode::whereKey($cart->promo_code_id)->lockForUpdate()->increment('used_count');
             }
             if ($cart->voucher) {
-                $voucher = $cart->voucher()->lockForUpdate()->firstOrFail();
-                abort_if($voucher->used_at !== null, 422, '❌ Kode promo tidak valid atau sudah kedaluwarsa.');
-                $voucher->update(['used_at' => now()]);
+                $lockedVoucher->update(['used_at' => now()]);
             }
             $cart->items()->delete();
             $cart->update(['promo_code_id' => null, 'voucher_id' => null]);

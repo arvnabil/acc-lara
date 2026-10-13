@@ -26,6 +26,10 @@ class VoucherService
 
     public function createBronzeVoucher(LoyaltyAccount $account): Voucher
     {
+        if (! in_array($account->current_tier->value, ['bronze', 'silver', 'gold', 'platinum', 'diamond'], true)) {
+            throw new \InvalidArgumentException('Tier belum memenuhi syarat voucher Bronze.');
+        }
+
         return Voucher::create([
             'code' => $this->uniqueCode('BR'),
             'title' => 'Voucher Bronze Rp 25.000',
@@ -42,6 +46,10 @@ class VoucherService
 
     public function createFreeShippingVoucher(LoyaltyAccount $account, int $slot, int $subsidy): Voucher
     {
+        if ($slot < 1 || $subsidy < 0) {
+            throw new \InvalidArgumentException('Slot atau plafon voucher tidak valid.');
+        }
+
         return Voucher::create([
             'code' => $this->uniqueCode('FS'),
             'title' => 'Voucher Gratis Ongkir',

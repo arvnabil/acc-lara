@@ -3,7 +3,6 @@
 namespace Modules\Loyalty;
 
 use App\Support\Modules\BaseModuleServiceProvider;
-use App\Support\Events\OrderReturned;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Event;
 use Modules\Accounts\Events\CompanyRegistered;
@@ -15,6 +14,7 @@ use Modules\Loyalty\Jobs\IssueTierBenefitsJob;
 use Modules\Loyalty\Jobs\ResetTierPointsJob;
 use Modules\Loyalty\Listeners\CreateLoyaltyAccount;
 use Modules\Loyalty\Listeners\ReverseOrderPoints;
+use Modules\Orders\Events\OrderReturned;
 
 class LoyaltyServiceProvider extends BaseModuleServiceProvider
 {

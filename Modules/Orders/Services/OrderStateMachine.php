@@ -8,6 +8,7 @@ use Modules\Catalog\Models\StockMovement;
 use Modules\Orders\Enums\OrderStatus;
 use Modules\Orders\Models\Order;
 use Modules\Orders\Models\OrderStatusHistory;
+use Modules\Orders\Events\OrderReturned;
 use Modules\Promo\Models\PromoCode;
 
 class OrderStateMachine
@@ -44,12 +45,16 @@ class OrderStateMachine
                     PromoCode::whereKey($order->promo_code_id)->lockForUpdate()->where('used_count', '>', 0)->decrement('used_count');
                 }
                 if ($order->voucher_id) {
-                    $order->voucher()->lockForUpdate()->first()?->update(['used_at' => null]);
+                    $voucher = $order->voucher()->lockForUpdate()->first();
+                    $usedElsewhere = Order::query()->where('voucher_id', $order->voucher_id)->whereKeyNot($order->id)->whereNotIn('status', [OrderStatus::Cancelled, OrderStatus::Returned])->exists();
+                    if ($voucher && ! $usedElsewhere) {
+                        $voucher->update(['used_at' => null]);
+                    }
                 }
             }
 
             if ($to === OrderStatus::Returned) {
-                Event::dispatch(new \App\Support\Events\OrderReturned($order));
+                Event::dispatch(new OrderReturned($order));
             }
 
             return $order->fresh();

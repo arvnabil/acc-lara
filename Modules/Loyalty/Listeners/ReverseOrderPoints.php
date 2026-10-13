@@ -2,7 +2,7 @@
 
 namespace Modules\Loyalty\Listeners;
 
-use App\Support\Events\OrderReturned;
+use Modules\Orders\Events\OrderReturned;
 use Modules\Loyalty\Services\LoyaltyService;
 
 class ReverseOrderPoints

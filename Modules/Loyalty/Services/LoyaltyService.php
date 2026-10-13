@@ -102,14 +102,18 @@ class LoyaltyService
                 $earning->update(['remaining_points' => 0]);
             }
 
+            $reversedBase = 0;
+            $reversedBonus = 0;
             if ($basePoints > 0) {
-                PointLedger::query()->firstOrCreate(['idempotency_key' => "reversal_base:{$order->id}"], ['loyalty_account_id' => $account->id, 'order_id' => $order->id, 'type' => 'reversal', 'points' => -$basePoints, 'counts_for_tier' => true, 'earned_at' => now(), 'created_at' => now(), 'notes' => 'Order returned']);
+                $reversal = PointLedger::query()->firstOrCreate(['idempotency_key' => "reversal_base:{$order->id}"], ['loyalty_account_id' => $account->id, 'order_id' => $order->id, 'type' => 'reversal', 'points' => -$basePoints, 'counts_for_tier' => true, 'earned_at' => now(), 'created_at' => now(), 'notes' => 'Order returned']);
+                $reversedBase = $reversal->wasRecentlyCreated ? $basePoints : 0;
             }
             if ($allPoints - $basePoints > 0) {
-                PointLedger::query()->firstOrCreate(['idempotency_key' => "reversal_bonus:{$order->id}"], ['loyalty_account_id' => $account->id, 'order_id' => $order->id, 'type' => 'reversal', 'points' => -($allPoints - $basePoints), 'counts_for_tier' => false, 'earned_at' => now(), 'created_at' => now(), 'notes' => 'Order returned']);
+                $reversal = PointLedger::query()->firstOrCreate(['idempotency_key' => "reversal_bonus:{$order->id}"], ['loyalty_account_id' => $account->id, 'order_id' => $order->id, 'type' => 'reversal', 'points' => -($allPoints - $basePoints), 'counts_for_tier' => false, 'earned_at' => now(), 'created_at' => now(), 'notes' => 'Order returned']);
+                $reversedBonus = $reversal->wasRecentlyCreated ? $allPoints - $basePoints : 0;
             }
 
-            $account->update(['tier_points' => max(0, $account->tier_points - $basePoints), 'points_balance' => $account->points_balance - $allPoints]);
+            $account->update(['tier_points' => max(0, $account->tier_points - $reversedBase), 'points_balance' => $account->points_balance - $reversedBase - $reversedBonus]);
 
             return $account->fresh();
         });
@@ -141,7 +145,44 @@ class LoyaltyService
 
     public function resetTierPoints(): void
     {
-        LoyaltyAccount::query()->update(['tier_points' => 0]);
+        DB::transaction(function (): void {
+            LoyaltyAccount::query()->select('id')->eachById(function (LoyaltyAccount $account): void {
+                $locked = LoyaltyAccount::query()->lockForUpdate()->findOrFail($account->id);
+                $locked->update(['tier_points' => 0]);
+            });
+        });
+    }
+
+    public function expirePoints(): void
+    {
+        PointLedger::query()
+            ->whereIn('type', ['earn_base', 'earn_bonus', 'earn_review', 'adjustment'])
+            ->where('remaining_points', '>', 0)
+            ->whereNotNull('expires_at')
+            ->where('expires_at', '<=', now())
+            ->orderBy('earned_at')
+            ->orderBy('id')
+            ->each(function (PointLedger $ledger): void {
+                DB::transaction(function () use ($ledger): void {
+                    $lockedLedger = PointLedger::query()->lockForUpdate()->find($ledger->id);
+                    if (! $lockedLedger || $lockedLedger->remaining_points <= 0) {
+                        return;
+                    }
+
+                    $account = LoyaltyAccount::query()->lockForUpdate()->find($lockedLedger->loyalty_account_id);
+                    if (! $account) {
+                        return;
+                    }
+
+                    $points = (int) $lockedLedger->remaining_points;
+                    $lockedLedger->update(['remaining_points' => 0]);
+                    $account->pointLedger()->firstOrCreate(
+                        ['idempotency_key' => "expire:{$lockedLedger->id}"],
+                        ['type' => 'expire', 'points' => -$points, 'counts_for_tier' => false, 'earned_at' => now(), 'created_at' => now(), 'notes' => "Expired ledger {$lockedLedger->id}"],
+                    );
+                    $account->update(['points_balance' => $account->points_balance - $points]);
+                });
+            });
     }
 
     public function redeemablePoints(LoyaltyAccount $account, bool $includeMonthlyLimit = true): int

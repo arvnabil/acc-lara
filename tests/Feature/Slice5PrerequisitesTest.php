@@ -11,7 +11,7 @@ use Modules\Cart\Services\PricingService;
 use Modules\Catalog\Models\Product;
 use Modules\Catalog\Models\Variant;
 use Modules\Orders\Enums\OrderStatus;
-use App\Support\Events\OrderReturned;
+use Modules\Orders\Events\OrderReturned;
 use Modules\Orders\Jobs\AutoCompleteShippedOrdersJob;
 use Modules\Orders\Jobs\ExpirePendingOrdersJob;
 use Modules\Orders\Models\Order;

@@ -3,6 +3,6 @@
   "description": "Poin, tier, penukaran. Aturan: SISTEM_LOYALTI_POIN.md Revisi 4.",
   "enabled": true,
   "priority": 30,
-  "requires": ["Orders", "Promo", "Accounts"],
+  "requires": ["Accounts", "Orders", "Promo"],
   "permissions": ["view_any_loyalty", "view_loyalty", "adjust_loyalty", "process_redemption"]
 }

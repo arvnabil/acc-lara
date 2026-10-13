@@ -23,7 +23,7 @@ class IssueTierBenefitsJob implements ShouldQueue
 
         LoyaltyAccount::query()->with('company')->each(function (LoyaltyAccount $account) use ($vouchers, $now, $quarter, $month, $slots): void {
             $tier = $account->current_tier->value;
-            if ($tier === 'bronze' && in_array($now->month, [1, 4, 7, 10], true) && ! $account->company->vouchers()->where('source', 'tier_bronze')->where('quarter_key', $quarter)->exists()) {
+            if (in_array($tier, ['bronze', 'silver', 'gold', 'platinum', 'diamond'], true) && in_array($now->month, [1, 4, 7, 10], true) && ! $account->company->vouchers()->where('source', 'tier_bronze')->where('quarter_key', $quarter)->exists()) {
                 $vouchers->createBronzeVoucher($account);
             }
             $subsidy = config("loyalty.shipping_subsidy_idr.{$tier}");

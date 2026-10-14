@@ -13,42 +13,25 @@ import { useToast } from "../compat/context";
 import ProductCard from "../components/ProductCard";
 
 // ─── Review Section ────────────────────────────────────────────────────────
-function ReviewSection({ product, user, updateUser }) {
-  const STORAGE_KEY = `accommerce_reviews_${product.id}`;
-  const [reviews, setReviews] = useState(() => {
-    try {
-      return [];
-    } catch {
-      return [];
-    }
-  });
+function ReviewSection({ product, user }) {
+  const [reviews, setReviews] = useState(product.reviews || []);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
   const [hoverRating, setHoverRating] = useState(0);
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [images, setImages] = useState([]);
+  const [imageFiles, setImageFiles] = useState([]);
   const [video, setVideo] = useState(null);
+  const [videoFile, setVideoFile] = useState(null);
   const [submitted, setSubmitted] = useState(false);
   const [selectedImageModal, setSelectedImageModal] = useState(null);
 
   // Check matching orders for repeat purchases support
-  const matchingOrders = user
-    ? (user.orders || []).filter((o) =>
-        (o.items || []).some((item) =>
-          item.name.toLowerCase().includes(product.name.split(" ")[0].toLowerCase()) ||
-          product.name.toLowerCase().includes(item.name.toLowerCase())
-        )
-      )
-    : [];
-
-  // Filter which orders have NOT yet been reviewed
-  const reviewedOrderIds = reviews
-    .filter((r) => r.userEmail === user?.email)
-    .map((r) => r.orderId);
-
-  const unreviewedOrders = matchingOrders.filter(
-    (o) => !reviewedOrderIds.includes(o.id)
-  );
+  const matchingOrders = (product.review_eligibility?.items || []).map((item) => ({
+    id: item.order_number,
+    order_item_id: item.order_item_id,
+  }));
+  const unreviewedOrders = matchingOrders;
 
   const canWriteReview = user && unreviewedOrders.length > 0;
   const targetOrder = unreviewedOrders[0];
@@ -61,6 +44,7 @@ function ReviewSection({ product, user, updateUser }) {
       reader.onload = (event) => {
         setImages((prev) => [...prev, event.target.result]);
       };
+      setImageFiles((prev) => [...prev, file]);
       reader.readAsDataURL(file);
     });
   }
@@ -76,47 +60,26 @@ function ReviewSection({ product, user, updateUser }) {
     reader.onload = (event) => {
       setVideo(event.target.result);
     };
+    setVideoFile(file);
     reader.readAsDataURL(file);
   }
 
   function handleSubmit(e) {
     e.preventDefault();
     if (!comment.trim()) return;
-    const newReview = {
-      id: Date.now(),
-      orderId: targetOrder?.id || `ORD-${Date.now()}`,
-      userEmail: user.email,
-      userName: isAnonymous ? "Pengguna Anonim" : (user.name || "Pelanggan Accommerce"),
-      isAnonymous,
-      rating,
-      comment: comment.trim(),
-      images,
-      video,
-      date: new Date().toLocaleDateString("id-ID", {
-        day: "2-digit",
-        month: "long",
-        year: "numeric",
-      }),
-    };
-    const updated = [newReview, ...reviews];
-    setReviews(updated);
-    setComment("");
-    setImages([]);
-    setVideo(null);
-    setSubmitted(true);
-    if (user && updateUser) {
-      updateUser({
-        points: (user.points || 0) + 50,
-        reviewsPending: Math.max(0, (user.reviewsPending || 0) - 1),
-      });
-    }
+    const form = new FormData();
+    form.append('rating', String(rating));
+    form.append('body', comment.trim());
+    form.append('is_anonymous', isAnonymous ? '1' : '0');
+    form.append('order_item_id', String(targetOrder.order_item_id));
+    imageFiles.forEach((file) => form.append('photos[]', file));
+    if (videoFile) form.append('video', videoFile);
+    router.post('/reviews', form, { forceFormData: true, preserveScroll: true, onSuccess: () => setSubmitted(true) });
   }
 
-  const avgRating = reviews.length
-    ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)
-    : "4.9";
-  const totalReviews = reviews.length || 33;
-  const totalSold = 120;
+  const avgRating = product.review_summary?.average ?? '-';
+  const totalReviews = product.review_summary?.count ?? 0;
+  const totalSold = product.review_summary?.sold ?? 0;
 
   return (
     <div id="section-ulasan" className="bg-white border border-gray-200 rounded-xl p-6 mt-6 scroll-mt-24">
@@ -659,7 +622,7 @@ export default function ProductDetailPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const { addItem } = useCart();
-  const { user, updateUser } = useAuth();
+  const { user } = useAuth();
   const { toggleWishlist, isInWishlist } = useWishlist();
   const { showToast } = useToast();
 
@@ -1995,7 +1958,7 @@ export default function ProductDetailPage() {
         )}
 
         {/* ── Ulasan Produk ────────────────────────────────────────────── */}
-        <ReviewSection product={product} user={user} updateUser={updateUser} />
+        <ReviewSection product={product} user={user} />
 
         {/* ── Produk Terkait ───────────────────────────────────────────── */}
         {relatedProducts.length > 0 && (

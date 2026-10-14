@@ -6,7 +6,9 @@ export default function ReviewModal({ isOpen, onClose, product, order, user, onS
   const [comment, setComment] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [images, setImages] = useState([]);
+  const [imageFiles, setImageFiles] = useState([]);
   const [video, setVideo] = useState(null);
+  const [videoFile, setVideoFile] = useState(null);
   const [loading, setLoading] = useState(false);
 
   if (!isOpen || !product) return null;
@@ -20,6 +22,7 @@ export default function ReviewModal({ isOpen, onClose, product, order, user, onS
       reader.onload = (event) => {
         setImages(prev => [...prev, event.target.result]);
       };
+      setImageFiles(prev => [...prev, file]);
       reader.readAsDataURL(file);
     });
   }
@@ -39,6 +42,7 @@ export default function ReviewModal({ isOpen, onClose, product, order, user, onS
     reader.onload = (event) => {
       setVideo(event.target.result);
     };
+    setVideoFile(file);
     reader.readAsDataURL(file);
   }
 
@@ -51,32 +55,18 @@ export default function ReviewModal({ isOpen, onClose, product, order, user, onS
     if (!comment.trim()) return;
 
     setLoading(true);
-    const newReview = {
-      id: Date.now(),
-      orderId: order?.id || `ORD-${Date.now()}`,
-      productId: product.id || product.slug || 'prod-1',
-      productName: product.name,
-      userEmail: user?.email || 'user@example.com',
-      userName: isAnonymous ? 'Pengguna Anonim' : (user?.name || 'Pengguna Accommerce'),
-      isAnonymous,
-      rating,
-      comment: comment.trim(),
-      images,
-      video,
-      date: new Date().toLocaleDateString('id-ID', {
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric',
-      }),
-    };
-
-    setTimeout(() => {
-      if (onSubmitReview) {
-        onSubmitReview(newReview);
-      }
-      setLoading(false);
-      onClose();
-    }, 400);
+    if (onSubmitReview) {
+      onSubmitReview({
+        order_item_id: order?.order_item_id,
+        rating,
+        body: comment.trim(),
+        is_anonymous: isAnonymous,
+        photos: imageFiles,
+        video: videoFile,
+      });
+    }
+    setLoading(false);
+    onClose();
   }
 
   const ratingLabels = ['', 'Sangat Buruk', 'Buruk', 'Cukup', 'Bagus', 'Sangat Bagus'];

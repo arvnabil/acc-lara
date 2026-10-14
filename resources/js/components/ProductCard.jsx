@@ -89,7 +89,7 @@ function StockBadge({ stock, isRental, isLicense }) {
 // ─── Main Card ────────────────────────────────────────────────────────────
 export default function ProductCard({ product }) {
   const { addItem } = useCart();
-  const { user, updateUser } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [imageLoaded, setImageLoaded] = useState(false);
   const [added, setAdded] = useState(false);

@@ -14,6 +14,8 @@ class DatabaseSeeder extends Seeder
         // 2. Lima kode promo dasar dari spesifikasi checkout.
         $this->call(\Modules\Promo\Database\Seeders\PromoSeeder::class);
 
+        $this->call(\Modules\Content\Database\Seeders\BannerSeeder::class);
+
         // 3. Seed catalog data dari Front/src/data (Skip during tests to save time)
         if (!app()->environment('testing')) {
             $this->call(\Modules\Catalog\Database\Seeders\CatalogSeeder::class);

@@ -18,6 +18,9 @@ import CheckoutPage from './pages/CheckoutPage.jsx';
 import CartPage from './pages/CartPage.jsx';
 import WishlistPage from './pages/WishlistPage.jsx';
 import LacakPesananPage from './pages/LacakPesananPage.jsx';
+import RfqPage from './pages/RfqPage.jsx';
+import BantuanPage from './pages/BantuanPage.jsx';
+import NotFound from './pages/NotFound.jsx';
 
 const pageFiles = {
     'Catalog::HomePage': HomePage,
@@ -34,6 +37,9 @@ const pageFiles = {
     'Catalog::CartPage': CartPage,
     'Catalog::WishlistPage': WishlistPage,
     'Catalog::LacakPesananPage': LacakPesananPage,
+    'Catalog::RfqPage': RfqPage,
+    'Catalog::BantuanPage': BantuanPage,
+    'Catalog::NotFound': NotFound,
 };
 
 function resolve(name) {

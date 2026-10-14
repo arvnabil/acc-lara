@@ -74,13 +74,23 @@ const HERO_SLIDES = [
   },
 ];
 
-function HeroCarousel() {
+function HeroCarousel({ banners = [] }) {
+  const slides = [
+    ...(banners.length > 0 ? banners.map(banner => ({
+      id: `banner-${banner.id}`,
+      type: 'banner-only',
+      img: banner.image_url,
+      link: banner.target_url || '/katalog',
+      title: banner.title,
+    })) : HERO_SLIDES.filter(slide => slide.type === 'banner-only')),
+    ...HERO_SLIDES.filter(slide => slide.type === 'default'),
+  ];
   const [active, setActive] = useState(0);
   const timerRef = useRef(null);
 
   const startTimer = () => {
     timerRef.current = setInterval(() => {
-      setActive(prev => (prev + 1) % HERO_SLIDES.length);
+      setActive(prev => (prev + 1) % slides.length);
     }, 5000);
   };
 
@@ -95,7 +105,7 @@ function HeroCarousel() {
     startTimer();
   }
 
-  const slide = HERO_SLIDES[active];
+  const slide = slides[active];
   const isBannerOnly = slide.type === 'banner-only';
 
   return (
@@ -148,7 +158,7 @@ function HeroCarousel() {
       {/* Controls Overlay (Navigasi slide & pagination) */}
       <div className={`absolute bottom-0 left-0 right-0 z-20 flex items-center justify-between p-4 ${isBannerOnly ? 'bg-gradient-to-t from-black/40 via-black/10 to-transparent' : 'border-t border-white/20'}`}>
         <div className="flex items-center gap-2">
-          {HERO_SLIDES.map((_, i) => (
+          {slides.map((_, i) => (
             <button
               key={i}
               onClick={() => goTo(i)}
@@ -158,10 +168,10 @@ function HeroCarousel() {
           ))}
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => goTo((active - 1 + HERO_SLIDES.length) % HERO_SLIDES.length)} aria-label="Slide sebelumnya" className="w-8 h-8 rounded-lg bg-black/30 hover:bg-black/50 text-white flex items-center justify-center transition-colors backdrop-blur-sm">
+          <button onClick={() => goTo((active - 1 + slides.length) % slides.length)} aria-label="Slide sebelumnya" className="w-8 h-8 rounded-lg bg-black/30 hover:bg-black/50 text-white flex items-center justify-center transition-colors backdrop-blur-sm">
             <span className="material-symbols-outlined text-[18px]">chevron_left</span>
           </button>
-          <button onClick={() => goTo((active + 1) % HERO_SLIDES.length)} aria-label="Slide berikutnya" className="w-8 h-8 rounded-lg bg-black/30 hover:bg-black/50 text-white flex items-center justify-center transition-colors backdrop-blur-sm">
+          <button onClick={() => goTo((active + 1) % slides.length)} aria-label="Slide berikutnya" className="w-8 h-8 rounded-lg bg-black/30 hover:bg-black/50 text-white flex items-center justify-center transition-colors backdrop-blur-sm">
             <span className="material-symbols-outlined text-[18px]">chevron_right</span>
           </button>
         </div>
@@ -256,7 +266,7 @@ const BENEFITS = [
   { icon: 'support_agent', title: 'SLA Dukungan 4 Jam', desc: 'Engineer bersertifikat siap bantu' },
 ];
 
-export default function HomePage({ featuredProducts: featured = [], saleProducts: sale = [], flashSaleProducts: flashSale = [], categories: propCats = [], brands = [] }) {
+export default function HomePage({ featuredProducts: featured = [], saleProducts: sale = [], flashSaleProducts: flashSale = [], categories: propCats = [], brands = [], banners = [] }) {
   const cats = propCats.filter(c => !c.parent_id && !c.is_addon && !c.is_brand_group).slice(0, 8);
   const loading = false;
 
@@ -272,7 +282,7 @@ export default function HomePage({ featuredProducts: featured = [], saleProducts
       <section className="max-w-[1440px] mx-auto px-gutter lg:px-margin py-space-xl w-full">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-space-lg items-stretch">
           <div className="lg:col-span-8">
-            <HeroCarousel />
+            <HeroCarousel banners={banners} />
           </div>
           {/* Promo Side Card */}
           <div className="lg:col-span-4 bg-card-bg rounded-xl border border-border-subtle p-space-xl flex flex-col justify-between shadow-sm relative overflow-hidden">

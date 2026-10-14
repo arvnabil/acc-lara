@@ -9,6 +9,7 @@ import { useState, useEffect, useRef } from "react";
 import { useCart, useWishlist } from "../compat/context";
 import { useAuth } from "../compat/context";
 import Footer from "./Footer";
+import PwaBadge from "./PwaBadge";
 
 // ─── Category icons ──────────────────────────────────────────────────────────
 function getCatIcon(slug = "") {
@@ -733,6 +734,7 @@ export default function Layout() {
       </main>
       <Footer />
       <BottomNav />
+      <PwaBadge />
 
       {/* Floating WhatsApp Bubble Chat (Sesuai Static Template) */}
       <aside

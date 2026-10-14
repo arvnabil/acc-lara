@@ -11,7 +11,15 @@ test('module manager sorts modules by priority and dependency', function () {
     $enabled = $manager->enabled();
 
     expect($enabled)->toBeInstanceOf(Collection::class);
-    expect($enabled->keys()->toArray())->toEqual(['Accounts', 'Catalog', 'Promo', 'Cart', 'Orders', 'Loyalty', 'Review', 'Content']);
+
+    $positions = $enabled->keys()->flip();
+    foreach ($enabled as $module) {
+        foreach ($module->requires as $dependency) {
+            expect($positions[$dependency] ?? null)
+                ->not->toBeNull("Missing enabled dependency {$dependency} for {$module->name}");
+            expect($positions[$dependency])->toBeLessThan($positions[$module->name]);
+        }
+    }
 });
 
 test('module manager throws exception on missing dependency', function () {

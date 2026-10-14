@@ -21,7 +21,14 @@ class ReviewResource extends Resource
 
     public static function form(Schema $form): Schema
     {
-        return $form->schema([Forms\Components\Toggle::make('is_approved')->label('Approved')]);
+        return $form->schema([
+            Forms\Components\Toggle::make('is_approved')->label('Approved'),
+            Forms\Components\Textarea::make('media')
+                ->label('Media')
+                ->formatStateUsing(fn ($state): string => json_encode($state ?? [], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES))
+                ->disabled()
+                ->dehydrated(false),
+        ]);
     }
 
     public static function table(Table $table): Table

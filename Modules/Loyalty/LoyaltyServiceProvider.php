@@ -38,7 +38,7 @@ class LoyaltyServiceProvider extends BaseModuleServiceProvider
         app(Schedule::class)->job(new IssueTierBenefitsJob)->monthlyOn(1, '00:05')->withoutOverlapping()->onOneServer();
         app(Schedule::class)->call(static function (): void {
             self::dispatchYearEndTierChain();
-        })->cron('59 23 31 12 *')->withoutOverlapping()->onOneServer();
+        })->cron('59 23 31 12 *')->name('loyalty.year-end-tier')->withoutOverlapping()->onOneServer();
     }
 
     public static function dispatchYearEndTierChain(): void

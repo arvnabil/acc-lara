@@ -652,3 +652,38 @@ rata_rata_dan_jumlah_review_publik_benar
 ```
 
 `php artisan test --list-tests` menemukan 107 entri termasuk dataset Pest; keluaran lengkap dijalankan setelah implementasi. Permission `approve_review` tersinkron melalui `module:permissions-sync`; ReviewResource memiliki filter rating/approved/product, lihat media melalui record, serta aksi setujui/sembunyikan.
+
+## Slice 7 prerequisites
+
+Branch `slice-7` dibuat dari `main` pada commit Slice 6 (`c93fa32`, merge Slice 6).
+
+### Bukti sumber Front
+
+Jumlah baris berkas yang diaudit:
+
+```text
+Front/src/App.jsx	80
+Front/src/pages/RfqPage.jsx	103
+Front/src/pages/BantuanPage.jsx	173
+Front/src/pages/HomePage.jsx	568
+Front/src/components/Layout.jsx	778
+Front/src/components/Footer.jsx	124
+```
+
+`App.jsx` memiliki 16 deklarasi rute: `/cari`, `/kategori`, `/login`, `/register`, `/lupa-password`, `/`, `/katalog`, `/produk/:slug`, `/keranjang`, `/wishlist`, `/checkout` (ProtectedRoute), `/minta-penawaran`, `/lacak-pesanan`, `/bantuan`, `/akun` (ProtectedRoute), dan wildcard `*` (NotFound). Halaman login, register, dan lupa-password tanpa Layout; halaman kategori dan pencarian juga full-screen; halaman lain berada di Layout.
+
+`RfqPage.jsx` memiliki empat field visual: Nama Perusahaan / Pembeli, Nama PIC / Pejabat belanja, Email Pelanggan, dan Nomor WhatsApp Aktif, serta textarea Daftar Kebutuhan Hardware & Spesifikasi Proyek. Submit asli hanya mengganti tampilan lokal; pesan suksesnya adalah `Permintaan Terkirim` dan `Terima kasih! Permintaan penawaran Anda (RFQ) telah kami terima. Tim sales kami akan merespons dalam waktu kurang dari 2 jam kerja.`
+
+`BantuanPage.jsx` berisi empat kelompok FAQ statis (Pemesanan, Pengiriman, Garansi & Produk, Pembayaran), tiga kartu kontak (WhatsApp `https://wa.me/6287780116800`, telepon `tel:02150886800`, dan tautan RFQ), serta CTA WhatsApp yang sama. Tidak ada konstanta kontak yang dipakai; kontak tetap literal seperti sumber.
+
+NotFound inline di `App.jsx` adalah blok ikon `error`, judul `Halaman tidak ditemukan`, dan tautan `href="#/"` berlabel `Kembali ke Beranda`.
+
+`HERO_SLIDES` berisi empat slide `banner-only` berurutan: `diskon-yealink.png` ke `/katalog?brand=yealink`, `october-sale.png` ke `/katalog?sort=sale`, `zoom.png` ke `/katalog?q=zoom`, dan `zoom-educate.png` ke `/katalog?q=zoom`. Tiga slide sisanya adalah slide default dengan badge, teks, gambar latar, CTA utama, dan CTA alternatif. Urutan akhir sumber adalah empat banner lalu tiga default. Sumber tidak membedakan gambar mobile.
+
+### Route list Tahap 0
+
+Keluaran `php artisan route:list` pada branch awal menunjukkan rute storefront yang sudah ada, termasuk `/`, `/katalog`, `/produk/{slug}`, `/cari`, `/kategori`, `/keranjang`, `/checkout`, `/wishlist`, `/akun`, `/login`, `/register`, `/lupa-password`, `/reset-password/{token}`, `/lacak-pesanan`, `/pembayaran/{number}`, dan `/sukses/{number}`. Pada saat audit, `/minta-penawaran` dan `/bantuan` belum ada, dan belum ada fallback route untuk NotFound. Rute `/reset-password/{token}` dan `/sukses/{number}` berasal dari alur Laravel/Checkout dan bukan deklarasi eksplisit di `Front/src/App.jsx`.
+
+### Internal href yang belum memiliki rute Laravel pada audit
+
+`/minta-penawaran` (dipakai Layout, Footer, Bantuan, ProductDetail) dan `/bantuan` (dipakai Layout, Footer, Login, Register, ForgotPassword, LacakPesanan) belum terdaftar. Tautan `#/` pada persetujuan Register dan inline NotFound adalah hash-link legacy dari HashRouter, bukan rute Laravel. Tautan eksternal `wa.me`, `tel:`, `mailto:`, dan aset `/method/qris-accommerce.png` tidak dihitung sebagai rute aplikasi. Tautan internal tersebut dipertahankan dan akan diberi endpoint pada Slice 7; tidak ada tautan yang dihapus.

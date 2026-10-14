@@ -581,3 +581,14 @@ Tes Diamond `Diamond mendapat empat voucher gratis ongkir per bulan` sudah aktif
 - Dashboard menampilkan kartu saldo poin dari `user.balance_value_idr`, nilai yang dapat ditukar dari `user.redeemable_points`, dan riwayat klaim dari `user.ewalletClaims`; `walletBalance` bukan saldo internal.
 - Tidak ada perubahan teks baru pada `DashboardPage`; teks existing dipertahankan.
 - `laravel/boost` tetap berada di `require-dev` sebagai paket pengembangan.
+
+## Slice 6 prerequisites
+
+Branch `slice-6` dibuat dari `main` setelah Slice 5 close (`4644115`). Ringkasan sumber `Front/src` sebelum migrasi:
+
+- `ReviewModal.jsx` (256 baris): rating 1–5, komentar wajib, maksimal 5 foto, 1 video maksimal 25 MB, checkbox anonim, preview media, dan pesan bonus `+50 Poin`. Upload memakai `FileReader`/data URL dan submit memakai `setTimeout(400ms)`.
+- `ProductDetailPage.jsx` `ReviewSection`: membaca ulasan dari `localStorage` per produk; rating fallback `4.9`, jumlah fallback `33`, penjualan hard-coded `120`; pencocokan pesanan memakai nama produk pada `user.orders`; hanya pesanan yang belum ada di daftar ulasan yang dapat dipilih. Belum login mendapat tautan masuk, belum pernah membeli mendapat pesan pembelian, dan produk yang sudah diulas mendapat pesan bahwa seluruh pembelian sudah diulas. Ulasan terbaru berada di depan.
+- `DashboardPage.jsx`: tab ulasan memiliki sub-tab `pending` dan `completed`. Pending mengharapkan `user.orders[].items[]` dengan `id`/`name` dan status pesanan; completed mengharapkan objek ulasan dengan `id`, `orderId`, `productName`, `userName`, `userEmail`, `isAnonymous`, `rating`, `comment`, `images`, `video`, dan `date`. Sumber lama menggunakan localStorage, `markOrderItemReviewed`, dan `updateUser` untuk poin.
+- `ProductCard.jsx`: tidak menampilkan rating atau jumlah ulasan.
+
+Prasyarat schema Slice 6 hanya additive: migration `2026_02_06_000002_add_anonymity_and_media_to_reviews_table.php` menambahkan `reviews.is_anonymous BOOLEAN DEFAULT FALSE` dan `reviews.media JSON NULL`; comparator dan ERD sudah diperbarui.

@@ -661,6 +661,8 @@ CREATE TABLE reviews (
     rating          TINYINT UNSIGNED NOT NULL,
     body            TEXT NOT NULL,
     is_approved     BOOLEAN DEFAULT TRUE,
+    is_anonymous    BOOLEAN DEFAULT FALSE,
+    media           JSON NULL,
     created_at      TIMESTAMP,
     updated_at      TIMESTAMP,
 

@@ -10,7 +10,6 @@ export default function DashboardPage() {
   const { 
     user, 
     logout, 
-    markOrderItemReviewed,
     saveAddress, 
     deleteAddress, 
     setDefaultAddress 
@@ -322,14 +321,19 @@ export default function DashboardPage() {
     setShowReviewModal(true);
   }
 
-  function handleReviewSubmitted(newReview) {
-    const itemKey = `${newReview.orderId}_${newReview.productName}`;
-    if (markOrderItemReviewed) {
-      markOrderItemReviewed(itemKey);
-    }
-
-    setMyReviews(prev => [newReview, ...prev]);
-    setFeedback({ type: 'success', message: 'Ulasan Anda berhasil dikirim! Bonus +50 Poin ditambahkan ke akun Anda.' });
+  function handleReviewSubmitted(review) {
+    const form = new FormData();
+    form.append('rating', String(review.rating));
+    form.append('body', review.body);
+    form.append('is_anonymous', review.is_anonymous ? '1' : '0');
+    form.append('order_item_id', String(review.order_item_id));
+    (review.photos || []).forEach((file) => form.append('photos[]', file));
+    if (review.video) form.append('video', review.video);
+    router.post('/reviews', form, {
+      forceFormData: true,
+      preserveScroll: true,
+      onSuccess: () => setFeedback({ type: 'success', message: 'Ulasan Anda berhasil dikirim! Bonus +50 Poin ditambahkan ke akun Anda.' }),
+    });
   }
 
   // E-Wallet Claim Handler
@@ -1726,17 +1730,7 @@ export default function DashboardPage() {
 
           {/* TAB 6: ULASAN SAYA */}
           {activeTab === 'reviews' && (() => {
-            const pendingReviewItems = [];
-            (user.orders || []).forEach(order => {
-              (order.items || []).forEach((item, itemIdx) => {
-                const itemKey = `${order.id}_${item.name}`;
-                const isReviewed = (user.reviewedOrderItems || []).includes(itemKey) ||
-                  myReviews.some(r => r.orderId === order.id && r.productName === item.name);
-                if (!isReviewed) {
-                  pendingReviewItems.push({ order, item, itemKey, itemIdx });
-                }
-              });
-            });
+            const pendingReviewItems = user.reviewPendingItems || [];
 
             return (
               <div className="bg-white rounded-xl border border-border-subtle p-6 shadow-sm">
@@ -1795,7 +1789,7 @@ export default function DashboardPage() {
                   <div>
                     {pendingReviewItems.length > 0 ? (
                       <div className="space-y-3.5">
-                        {pendingReviewItems.map(({ order, item, itemKey, itemIdx }) => (
+                        {pendingReviewItems.map(({ order, item }) => (
                           <div
                             key={itemKey}
                             className="p-4 rounded-xl border border-border-subtle bg-white hover:border-primary/50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs"
@@ -1811,9 +1805,9 @@ export default function DashboardPage() {
                                 </span>
                               </div>
                               <h4 className="font-bold text-sm text-text-primary">
-                                {productSlugs[item.name?.toLowerCase()] ? (
+                                {item.slug || productSlugs[item.name?.toLowerCase()] ? (
                                   <Link
-                                    to={`/produk/${productSlugs[item.name.toLowerCase()]}`}
+                                    to={`/produk/${item.slug || productSlugs[item.name.toLowerCase()]}`}
                                     className="text-primary hover:underline"
                                   >
                                     {item.name}
@@ -1829,7 +1823,7 @@ export default function DashboardPage() {
 
                             <button
                               type="button"
-                              onClick={() => handleOpenReview({ name: item.name, id: `prod-${itemIdx + 1}` }, order)}
+                              onClick={() => handleOpenReview({ name: item.name, id: item.productId }, { ...order, order_item_id: item.id })}
                               className="px-4 py-2 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1.5 shrink-0 cursor-pointer self-start sm:self-auto"
                             >
                               <span className="material-symbols-outlined text-[16px]">rate_review</span>

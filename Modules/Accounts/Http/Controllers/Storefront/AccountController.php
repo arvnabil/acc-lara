@@ -6,11 +6,15 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Accounts\Models\Address;
-use Modules\Orders\Models\Order;
 use Modules\Loyalty\Services\LoyaltyService;
+use Modules\Orders\Enums\OrderStatus;
+use Modules\Orders\Models\Order;
+use Modules\Orders\Models\OrderItem;
+use Modules\Review\Models\Review;
 
 class AccountController extends Controller
 {
@@ -20,12 +24,15 @@ class AccountController extends Controller
             'addresses',
             'wishlists.product.images',
             'orders.items',
+            'orders.items.product',
             'orders.user',
         ]);
 
         $account = $loyalty->accountForUser($user);
         $loyaltyProps = $account ? $loyalty->sharedProps($user) : [];
         $vouchers = $user->company?->vouchers()->whereNull('used_at')->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()))->orderBy('expires_at')->get() ?? collect();
+        $reviews = Review::query()->with(['order:id,number', 'product:id,name,slug', 'user:id,name'])->where('company_id', $user->company_id)->latest('id')->get();
+        $pendingReviewItems = OrderItem::query()->with(['order:id,number,created_at,company_id,status', 'product:id,name,slug'])->whereHas('order', fn ($query) => $query->where('company_id', $user->company_id)->where('status', OrderStatus::Completed))->whereDoesntHave('reviews', fn ($query) => $query->where('company_id', $user->company_id))->latest('id')->get();
 
         return Inertia::render('Catalog::DashboardPage', [
             'account' => [
@@ -42,13 +49,17 @@ class AccountController extends Controller
                 ])->values()->all(),
                 'wishlist' => $user->wishlists->pluck('product_id')->values()->all(),
                 'wishlistProducts' => $user->wishlists->pluck('product')->filter()->values()->all(),
-                'reviews' => [],
+                'reviews' => $reviews->map(fn (Review $review): array => $this->serializeReview($review))->values()->all(),
+                'reviewPendingItems' => $pendingReviewItems->map(fn (OrderItem $item): array => [
+                    'order' => ['id' => $item->order->number, 'date' => $item->order->created_at?->format('d F Y'), 'status' => 'Selesai'],
+                    'item' => ['id' => $item->id, 'name' => $item->product->name, 'productId' => $item->product_id, 'slug' => $item->product->slug, 'qty' => (int) $item->quantity, 'price' => (int) $item->unit_price],
+                ])->values()->all(),
                 'points_balance' => $loyaltyProps['points_balance'] ?? 0,
                 'tier_points' => $loyaltyProps['tier_points'] ?? 0,
                 'current_tier' => $loyaltyProps['current_tier'] ?? 'classic',
                 ...$loyaltyProps,
                 'member_since' => $user->created_at?->format('Y'),
-                'reviewsPending' => 0,
+                'reviewsPending' => $pendingReviewItems->count(),
             ],
         ]);
     }
@@ -197,12 +208,34 @@ class AccountController extends Controller
             'phone' => $address['phone'] ?? $order->user?->phone,
             'shippingCost' => (int) $order->shipping_cost,
             'items' => $order->items->map(fn ($item): array => [
+                'id' => $item->id,
+                'productId' => $item->product_id,
+                'slug' => $item->product?->slug,
                 'name' => $item->product_name,
                 'sku' => $item->sku,
                 'qty' => (int) $item->quantity,
                 'price' => (int) $item->unit_price,
                 'weight' => null,
             ])->values()->all(),
+        ];
+    }
+
+    private function serializeReview(Review $review): array
+    {
+        $media = collect($review->media ?? []);
+
+        return [
+            'id' => $review->id,
+            'orderId' => $review->order?->number,
+            'productName' => $review->product?->name,
+            'productSlug' => $review->product?->slug,
+            'rating' => (int) $review->rating,
+            'comment' => $review->body,
+            'isAnonymous' => (bool) $review->is_anonymous,
+            'userName' => $review->is_anonymous ? 'Pengguna Anonim' : $review->user?->name,
+            'date' => $review->created_at?->translatedFormat('d F Y'),
+            'images' => $media->where('type', 'photo')->map(fn (array $item): string => Storage::disk('public')->url($item['path']))->values()->all(),
+            'video' => ($video = $media->firstWhere('type', 'video')) ? Storage::disk('public')->url($video['path']) : null,
         ];
     }
 }

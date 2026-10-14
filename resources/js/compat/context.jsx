@@ -11,11 +11,9 @@ export function useAuth() {
         login: (data, options = {}) => inertiaRouter.post('/login', data, options),
         logout: (options = {}) => inertiaRouter.post('/logout', {}, options),
         register: (data, options = {}) => inertiaRouter.post('/register', data, options),
-        updateUser: () => {},
         redeemPointsForWallet: () => false,
         redeemPointsForVoucher: () => false,
         claimEwalletPoints: () => ({ success: false }),
-        markOrderItemReviewed: () => {},
         saveAddress: (data, options = {}) => {
             const payload = {
                 label: data.label,

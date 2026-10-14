@@ -581,3 +581,74 @@ Tes Diamond `Diamond mendapat empat voucher gratis ongkir per bulan` sudah aktif
 - Dashboard menampilkan kartu saldo poin dari `user.balance_value_idr`, nilai yang dapat ditukar dari `user.redeemable_points`, dan riwayat klaim dari `user.ewalletClaims`; `walletBalance` bukan saldo internal.
 - Tidak ada perubahan teks baru pada `DashboardPage`; teks existing dipertahankan.
 - `laravel/boost` tetap berada di `require-dev` sebagai paket pengembangan.
+
+## Slice 6 prerequisites
+
+Branch `slice-6` dibuat dari `main` setelah Slice 5 close (`4644115`). Ringkasan sumber `Front/src` sebelum migrasi:
+
+- `ReviewModal.jsx` (256 baris): rating 1–5, komentar wajib, maksimal 5 foto, 1 video maksimal 25 MB, checkbox anonim, preview media, dan pesan bonus `+50 Poin`. Upload memakai `FileReader`/data URL dan submit memakai `setTimeout(400ms)`.
+- `ProductDetailPage.jsx` `ReviewSection`: membaca ulasan dari `localStorage` per produk; rating fallback `4.9`, jumlah fallback `33`, penjualan hard-coded `120`; pencocokan pesanan memakai nama produk pada `user.orders`; hanya pesanan yang belum ada di daftar ulasan yang dapat dipilih. Belum login mendapat tautan masuk, belum pernah membeli mendapat pesan pembelian, dan produk yang sudah diulas mendapat pesan bahwa seluruh pembelian sudah diulas. Ulasan terbaru berada di depan.
+- `DashboardPage.jsx`: tab ulasan memiliki sub-tab `pending` dan `completed`. Pending mengharapkan `user.orders[].items[]` dengan `id`/`name` dan status pesanan; completed mengharapkan objek ulasan dengan `id`, `orderId`, `productName`, `userName`, `userEmail`, `isAnonymous`, `rating`, `comment`, `images`, `video`, dan `date`. Sumber lama menggunakan localStorage, `markOrderItemReviewed`, dan `updateUser` untuk poin.
+- `ProductCard.jsx`: tidak menampilkan rating atau jumlah ulasan.
+
+Prasyarat schema Slice 6 hanya additive: migration `2026_02_06_000002_add_anonymity_and_media_to_reviews_table.php` menambahkan `reviews.is_anonymous BOOLEAN DEFAULT FALSE` dan `reviews.media JSON NULL`; comparator dan ERD sudah diperbarui.
+
+## Slice 6 closeout
+
+- Commit tahap A: `a984094 slice6: review core`.
+- Commit tahap B: `787d41e slice6: review pages`.
+- Commit tahap C: dibuat setelah bukti dan test hijau.
+- `ReviewStored` memakai kontrak `reviewId`, `companyId`, `userId`, `productId`, `orderId` dan `ShouldDispatchAfterCommit`. Listener Loyalty memberi 50 poin sekali melalui `LoyaltyService`; `tier_points` tidak berubah dan `expires_at` mengikuti 24 bulan.
+- Endpoint review memvalidasi pesanan completed, company, unique company-product, rating, body, mime aktual foto/video, maksimal 5 foto, video maksimal 25 MB, serta menyimpan file ke disk `public` dengan nama acak. Foto memakai batas server 5 MB per file untuk perlindungan upload; modal sumber tidak menetapkan batas ukuran foto.
+- Ulasan anonim tidak mengirim `user_id`, email, atau nama asli ke props publik. Produk hanya menerima agregat dan ulasan `is_approved`; ProductCard tidak menampilkan rating/jumlah ulasan.
+- `updateUser`, `markOrderItemReviewed`, dan localStorage ulasan sudah dihapus dari runtime. Satu-satunya localStorage tersisa adalah `accommerce_search_history` di `SearchPage.jsx`.
+
+### Bukti Slice 6
+
+```text
+php artisan schema:compare-erd
+ERD_COMPARE_OK columns/types/nullability/FKs/unique verified
+
+php artisan test tests/Feature/Slice6ReviewTest.php --compact
+Tests: 10 passed (56 assertions)
+
+php artisan test --compact
+Tests: 105 passed (349 assertions)
+
+npm run build
+✓ 592 modules transformed.
+✓ built successfully
+```
+
+Diff stat sumber vs hasil migrasi:
+
+```text
+ReviewModal.jsx       16 insertions(+), 26 deletions(-)
+ProductDetailPage.jsx 47 insertions(+), 110 deletions(-)
+DashboardPage.jsx    64 insertions(+), 140 deletions(-)
+ProductCard.jsx       9 insertions(+), 8 deletions(-)
+```
+
+Grep akhir:
+
+```text
+localStorage: hanya resources/js/pages/SearchPage.jsx (accommerce_search_history)
+updateUser: tidak ada
+markOrderItemReviewed: tidak ada
+```
+
+Nama test Slice 6:
+
+```text
+ulasan_hanya_dapat_dibuat_dari_pesanan_completed (returned, cancelled)
+ulasan_dari_item_company_lain_ditolak
+sub_akun_boleh_mengulas_pertama_kali_tetapi_review_kedua_company_ditolak
+review_memberi_lima_puluh_poin_sekali_dan_tier_points_tidak_berubah
+retur_menarik_poin_ulasan
+review_anonim_tidak_membocorkan_nama_email_atau_user_id_ke_publik
+media_review_menolak_mime_palsu_dan_ukuran_video_berlebih
+review_yang_disembunyikan_tidak_tampil_publik_tetapi_tetap_ada_di_admin
+rata_rata_dan_jumlah_review_publik_benar
+```
+
+`php artisan test --list-tests` menemukan 107 entri termasuk dataset Pest; keluaran lengkap dijalankan setelah implementasi. Permission `approve_review` tersinkron melalui `module:permissions-sync`; ReviewResource memiliki filter rating/approved/product, lihat media melalui record, serta aksi setujui/sembunyikan.

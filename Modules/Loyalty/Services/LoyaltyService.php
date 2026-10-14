@@ -3,11 +3,13 @@
 namespace Modules\Loyalty\Services;
 
 use App\Models\User;
+use App\Support\Events\ReviewStored;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Modules\Loyalty\Enums\LoyaltyTier;
 use Modules\Loyalty\Models\LoyaltyAccount;
 use Modules\Loyalty\Models\PointLedger;
+use Modules\Loyalty\Models\Redemption;
 use Modules\Orders\Models\Order;
 use Modules\Promo\Services\VoucherService;
 
@@ -89,7 +91,7 @@ class LoyaltyService
     {
         return DB::transaction(function () use ($order): ?LoyaltyAccount {
             $order = Order::query()->lockForUpdate()->findOrFail($order->id);
-            if (! $order->points_awarded_at || ! $order->company_id) {
+            if (! $order->company_id) {
                 return null;
             }
 
@@ -114,6 +116,33 @@ class LoyaltyService
             }
 
             $account->update(['tier_points' => max(0, $account->tier_points - $reversedBase), 'points_balance' => $account->points_balance - $reversedBase - $reversedBonus]);
+
+            return $account->fresh();
+        });
+    }
+
+    public function awardForReview(ReviewStored $event): LoyaltyAccount
+    {
+        return DB::transaction(function () use ($event): LoyaltyAccount {
+            $account = LoyaltyAccount::query()->where('company_id', $event->companyId)->lockForUpdate()->firstOrFail();
+            $ledger = $account->pointLedger()->firstOrCreate(
+                ['idempotency_key' => "earn_review:{$event->reviewId}"],
+                [
+                    'order_id' => $event->orderId,
+                    'review_id' => $event->reviewId,
+                    'type' => 'earn_review',
+                    'points' => 50,
+                    'remaining_points' => 50,
+                    'counts_for_tier' => false,
+                    'earned_at' => now(),
+                    'expires_at' => now()->addMonths((int) config('loyalty.redemption.expiry_months', 24)),
+                    'created_at' => now(),
+                ],
+            );
+
+            if ($ledger->wasRecentlyCreated) {
+                $account->increment('points_balance', 50);
+            }
 
             return $account->fresh();
         });
@@ -248,7 +277,7 @@ class LoyaltyService
         });
     }
 
-    public function refundRedemption(\Modules\Loyalty\Models\Redemption $redemption, string $reason): void
+    public function refundRedemption(Redemption $redemption, string $reason): void
     {
         DB::transaction(function () use ($redemption, $reason): void {
             $redemption = $redemption->newQuery()->lockForUpdate()->findOrFail($redemption->id);

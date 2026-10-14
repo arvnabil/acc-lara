@@ -17,6 +17,11 @@ class ContentController extends Controller
         return Inertia::render('Catalog::BantuanPage');
     }
 
+    public function rfq(): Response
+    {
+        return Inertia::render('Catalog::RfqPage');
+    }
+
     public function storeRfq(Request $request): RedirectResponse
     {
         $data = $request->validate([

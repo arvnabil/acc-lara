@@ -687,3 +687,64 @@ Keluaran `php artisan route:list` pada branch awal menunjukkan rute storefront y
 ### Internal href yang belum memiliki rute Laravel pada audit
 
 `/minta-penawaran` (dipakai Layout, Footer, Bantuan, ProductDetail) dan `/bantuan` (dipakai Layout, Footer, Login, Register, ForgotPassword, LacakPesanan) belum terdaftar. Tautan `#/` pada persetujuan Register dan inline NotFound adalah hash-link legacy dari HashRouter, bukan rute Laravel. Tautan eksternal `wa.me`, `tel:`, `mailto:`, dan aset `/method/qris-accommerce.png` tidak dihitung sebagai rute aplikasi. Tautan internal tersebut dipertahankan dan akan diberi endpoint pada Slice 7; tidak ada tautan yang dihapus.
+
+## Slice 7 closeout
+
+### Tahap A: Content backend
+
+- `ContentServiceProvider` hanya membagikan prop `banners` untuk route bernama `home`; query membatasi `is_active`, `starts_at`, dan `expires_at`, kemudian mengurutkan `sort_order` dan `id`. Catalog tidak mengimpor Content.
+- `BannerSeeder` memakai empat aset `public/banner` dan `updateOrCreate` berdasarkan `image_url`: `diskon-yealink.png`, `october-sale.png`, `zoom.png`, dan `zoom-educate.png`. `mobile_image_url` tidak dipakai karena JSX sumber tidak membedakan gambar mobile.
+- `HomePage` mempertahankan tiga slide default dan menyusun banner aktif dari props di posisi empat slide banner awal. Bila prop kosong, empat slide banner bawaan tetap dipakai.
+- RFQ memiliki GET `/minta-penawaran` dan POST `/minta-penawaran` dengan `throttle:5,1`. Form sumber tidak mempunyai `name` attribute; handler mengambil lima elemen form berdasarkan urutannya dan mengirim `company_name`, `name`, `email`, `phone`, serta `message`. Tidak ada field tambahan yang perlu digabungkan ke `message` selain textarea tersebut. Status awal `new`; notifikasi dikirim ke `config('site.sales_email')` menggunakan `Mail::raw`.
+- `/bantuan` merender halaman statis sumber. Fallback route merender `Catalog::NotFound` dengan status HTTP 404. Tidak dibuat halaman 500/503.
+
+### Tahap B: Filament dan tes
+
+BannerResource mendukung unggah `FileUpload` ke disk `public`, urutan, jadwal, dan aktif. RfqRequestResource hanya daftar, filter status, view modal, dan edit status; create/delete dinonaktifkan. Permission Content disinkronkan:
+
+```text
+Memulai sinkronisasi permissions dari modul aktif..
+Sinkronisasi selesai: 1 dibuat, 3 dihapus, 63 total izin aktif.
+```
+
+Nama tes Slice 7:
+
+```text
+RFQ tersimpan dengan field benar dan email sales dikirim
+RFQ validation fails for missing fields
+RFQ sixth attempt in one minute returns 429
+inactive and scheduled-out banners are not shared to the home page
+home page renders with no banner records
+help page renders successfully
+random URL returns the Inertia NotFound page with status 404
+internal storefront links return 200 or 302
+```
+
+Hasil tes fitur:
+
+```text
+php artisan test tests/Feature/Slice7ContentTest.php --compact
+Tests: 8 passed (58 assertions)
+```
+
+### Bukti migrasi dan validasi
+
+Diff stat sumber Front terhadap hasil migrasi:
+
+```text
+RfqPage.jsx      17 insertions(+), 2 deletions(-)
+BantuanPage.jsx   3 insertions(+), 1 deletion(-)
+HomePage.jsx     21 insertions(+), 47 deletions(-)
+```
+
+Perubahan teks tidak dilakukan pada markup sumber. Perubahan non-markup adalah import `react-router-dom` ke compat router pada Bantuan, handler submit RFQ dari state lokal ke `router.post`, empat slide banner-only dibaca dari prop server dengan fallback ke array sumber, dan penambahan slide prop ke `HeroCarousel`.
+
+```text
+php artisan schema:compare-erd
+ERD_COMPARE_OK columns/types/nullability/FKs/unique verified
+
+npm run build
+✓ built in 9.04s
+```
+
+Tautan internal yang sebelumnya belum punya endpoint (`/bantuan` dan `/minta-penawaran`) sekarang terdaftar. Tautan `#/` pada persetujuan Register dan NotFound tetap legacy HashRouter dan tidak dihapus; usulan berikutnya adalah menggantinya dengan rute kebijakan ketika halaman kebijakan tersedia. Tautan eksternal WhatsApp, telepon, email, dan aset pembayaran tidak diuji sebagai rute Laravel.

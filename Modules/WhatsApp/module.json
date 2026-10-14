@@ -1,0 +1,8 @@
+{
+  "name": "WhatsApp",
+  "description": "Configurable WhatsApp support bubble.",
+  "enabled": true,
+  "priority": 40,
+  "requires": [],
+  "permissions": ["view_whatsapp", "update_whatsapp"]
+}

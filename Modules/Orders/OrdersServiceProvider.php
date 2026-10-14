@@ -14,7 +14,7 @@ class OrdersServiceProvider extends BaseModuleServiceProvider
     public function boot(): void
     {
         parent::boot();
-        app(Schedule::class)->job(new AutoCompleteShippedOrdersJob)->daily();
-        app(Schedule::class)->job(new ExpirePendingOrdersJob)->hourly();
+        app(Schedule::class)->job(new AutoCompleteShippedOrdersJob)->daily()->withoutOverlapping()->onOneServer();
+        app(Schedule::class)->job(new ExpirePendingOrdersJob)->hourly()->withoutOverlapping()->onOneServer();
     }
 }

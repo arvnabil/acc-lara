@@ -33,12 +33,12 @@ class LoyaltyServiceProvider extends BaseModuleServiceProvider
         Event::listen(CompanyRegistered::class, CreateLoyaltyAccount::class);
         Event::listen(OrderReturned::class, ReverseOrderPoints::class);
         Event::listen(ReviewStored::class, AwardReviewPoints::class);
-        app(Schedule::class)->job(new ExpirePointsJob)->daily();
-        app(Schedule::class)->job(new AwardEligiblePointsJob)->daily();
-        app(Schedule::class)->job(new IssueTierBenefitsJob)->monthlyOn(1, '00:05');
+        app(Schedule::class)->job(new ExpirePointsJob)->daily()->withoutOverlapping()->onOneServer();
+        app(Schedule::class)->job(new AwardEligiblePointsJob)->daily()->withoutOverlapping()->onOneServer();
+        app(Schedule::class)->job(new IssueTierBenefitsJob)->monthlyOn(1, '00:05')->withoutOverlapping()->onOneServer();
         app(Schedule::class)->call(static function (): void {
             self::dispatchYearEndTierChain();
-        })->cron('59 23 31 12 *');
+        })->cron('59 23 31 12 *')->withoutOverlapping()->onOneServer();
     }
 
     public static function dispatchYearEndTierChain(): void

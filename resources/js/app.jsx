@@ -21,6 +21,7 @@ import LacakPesananPage from './pages/LacakPesananPage.jsx';
 import RfqPage from './pages/RfqPage.jsx';
 import BantuanPage from './pages/BantuanPage.jsx';
 import NotFound from './pages/NotFound.jsx';
+import { clearPageCache } from './pwa';
 
 const pageFiles = {
     'Catalog::HomePage': HomePage,
@@ -63,3 +64,10 @@ createInertiaApp({
     },
     progress: { color: '#003599' },
 });
+
+const clearSensitivePageCache = ({ detail }) => {
+    const status = detail?.response?.status;
+    if (status === 401 || status === 419) clearPageCache();
+};
+
+document.addEventListener('inertia:invalid', clearSensitivePageCache);

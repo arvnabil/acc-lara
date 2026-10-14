@@ -5,6 +5,7 @@ import { useAuth } from '../compat/context';
 import { useWishlist } from '../compat/context';
 import InvoiceModal from '../components/InvoiceModal';
 import ReviewModal from '../components/ReviewModal';
+import { clearPageCache } from '../pwa';
 
 export default function DashboardPage() {
   const { 
@@ -230,6 +231,7 @@ export default function DashboardPage() {
   if (!user) return null;
 
   function handleLogout() {
+    clearPageCache();
     logout();
     navigate('/');
   }

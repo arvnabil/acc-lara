@@ -91,7 +91,12 @@ class CatalogController extends Controller
         }
 
         $related = Product::query()
-            ->with(['brand:id,name,slug,logo_url', 'images:id,product_id,url,sort_order'])
+            ->with([
+                'brand:id,name,slug,logo_url',
+                'categories:id,name,slug,full_path,parent_id',
+                'images:id,product_id,url,sort_order',
+                'attributes:id,attributable_type,attributable_id,name,value',
+            ])
             ->where('products.id', '<>', $product->id)
             ->where('is_addon', false)
             ->whereHas('categories', fn ($query) => $query->whereIn('categories.id', $product->categories->modelKeys()))

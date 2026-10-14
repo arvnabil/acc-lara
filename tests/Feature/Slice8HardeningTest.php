@@ -1,10 +1,13 @@
 <?php
 
 use Database\Seeders\AdminUserSeeder;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
 use Modules\Catalog\Models\Product;
+use Spatie\Permission\Models\Role;
 
-uses(Tests\TestCase::class);
+uses(Tests\TestCase::class, RefreshDatabase::class);
 
 test('pwa manifest and service worker are published with the required scope', function () {
     $manifest = json_decode(file_get_contents(public_path('manifest.webmanifest')), true, flags: JSON_THROW_ON_ERROR);
@@ -19,9 +22,14 @@ test('pwa manifest and service worker are published with the required scope', fu
 test('service worker denylist excludes sensitive storefront and admin routes', function () {
     $serviceWorker = file_get_contents(public_path('sw.js'));
 
-    foreach (['/admin', '/akun', '/keranjang', '/checkout', '/pembayaran', '/sukses', '/lacak-pesanan', '/wishlist', '/loyalty', '/reviews', '/login'] as $path) {
-        expect($serviceWorker)->toContain($path);
+    foreach (['admin', 'livewire', 'login', 'register', 'lupa-password', 'reset-password', 'akun', 'keranjang', 'checkout', 'pembayaran', 'sukses', 'lacak-pesanan', 'wishlist', 'loyalty', 'reviews', 'cart'] as $segment) {
+        expect($serviceWorker)->toContain($segment);
     }
+
+    expect($serviceWorker)->not->toContain('NavigationRoute')
+        ->and($serviceWorker)->not->toContain('createHandlerBoundToURL')
+        ->and($serviceWorker)->toContain('setCatchHandler')
+        ->and($serviceWorker)->toContain('/offline.html');
 });
 
 test('storefront mutating routes use named rate limits', function () {
@@ -44,10 +52,26 @@ test('product rich text strips scripts event handlers and javascript links', fun
 });
 
 test('production admin seeder refuses missing credentials', function () {
-    config()->set('app.env', 'production');
-    putenv('ADMIN_EMAIL');
-    putenv('ADMIN_PASSWORD');
+    app()->detectEnvironment(fn () => 'production');
+    putenv('ADMIN_EMAIL=');
+    putenv('ADMIN_PASSWORD=');
 
-    expect(fn () => (new AdminUserSeeder)->run())
-        ->toThrow(RuntimeException::class, 'ADMIN_EMAIL and ADMIN_PASSWORD are required in production');
+    try {
+        expect(fn () => (new AdminUserSeeder)->run())
+            ->toThrow(RuntimeException::class, 'ADMIN_EMAIL and ADMIN_PASSWORD are required in production');
+    } finally {
+        app()->detectEnvironment(fn () => 'testing');
+        putenv('APP_ENV=testing');
+    }
+});
+
+test('admin without MFA is redirected to the required setup page', function () {
+    $admin = User::factory()->create();
+    $admin->saveAppAuthenticationSecret(null);
+    Role::firstOrCreate(['name' => 'administrator', 'guard_name' => 'web']);
+    $admin->assignRole('administrator');
+
+    $this->actingAs($admin)
+        ->get('/admin')
+        ->assertRedirect('/admin/multi-factor-authentication/set-up');
 });

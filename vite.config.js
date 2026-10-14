@@ -4,7 +4,6 @@ import { resolve } from 'node:path';
 import react from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
 import { VitePWA } from 'vite-plugin-pwa';
-import { bunny } from 'laravel-vite-plugin/fonts';
 
 export default defineConfig({
     plugins: [
@@ -12,14 +11,10 @@ export default defineConfig({
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.jsx'],
             refresh: true,
-            fonts: [
-                bunny('Instrument Sans', {
-                    weights: [400, 500, 600],
-                }),
-            ],
         }),
         VitePWA({
             registerType: 'prompt',
+            srcDir: 'resources/js',
             filename: 'sw.js',
             manifestFilename: 'manifest.webmanifest',
             outDir: 'public',
@@ -46,48 +41,11 @@ export default defineConfig({
                     { src: '/favicon-512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
                 ],
             },
-            workbox: {
-                maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
-                cleanupOutdatedCaches: true,
-                navigateFallback: '/offline.html',
-                navigateFallbackDenylist: [
-                    /^\/admin(?:\/|$)/,
-                    /^\/livewire(?:\/|$)/,
-                    /^\/(?:login|register|lupa-password|reset-password)(?:\/|$)/,
-                    /^\/(?:akun|keranjang|checkout|pembayaran|sukses|lacak-pesanan|wishlist|loyalty|reviews|cart)(?:\/|$)/,
-                ],
+            strategies: 'injectManifest',
+            injectManifest: {
                 globPatterns: ['**/*.{js,css,html,woff,woff2,ttf,ico,svg,json,png}'],
                 globIgnores: ['banner/**', 'products/**', 'storage/**', 'js/filament/**', 'css/filament/**', 'fonts/filament/**', 'livewire/**'],
-                runtimeCaching: [
-                    {
-                        urlPattern: ({ request, url }) => request.mode === 'navigate' && [
-                            '/', '/katalog', '/kategori', '/cari', '/bantuan',
-                        ].includes(url.pathname) || (request.mode === 'navigate' && url.pathname.startsWith('/produk/')),
-                        handler: 'NetworkFirst',
-                        options: {
-                            cacheName: 'pages',
-                            networkTimeoutSeconds: 3,
-                            expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 * 7 },
-                            cacheableResponse: { statuses: [0, 200] },
-                        },
-                    },
-                    {
-                        urlPattern: ({ request, url }) => request.method === 'GET' && /^\/(?:products|banner|storage\/catalog)\//.test(url.pathname),
-                        handler: 'CacheFirst',
-                        options: {
-                            cacheName: 'catalog-images',
-                            expiration: { maxEntries: 300, maxAgeSeconds: 60 * 60 * 24 * 30 },
-                            cacheableResponse: { statuses: [0, 200] },
-                        },
-                    },
-                    {
-                        urlPattern: ({ request, url }) => request.method === 'GET' && (
-                            url.origin === 'https://fonts.googleapis.com' || url.origin === 'https://fonts.gstatic.com'
-                        ),
-                        handler: 'StaleWhileRevalidate',
-                        options: { cacheName: 'google-fonts', expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 } },
-                    },
-                ],
+                maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
             },
         }),
         {

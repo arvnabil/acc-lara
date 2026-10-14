@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, router } from '../compat/router';
 import { useToast } from '../compat/context';
+import { clearPageCache } from '../pwa';
 
 export default function RegisterPage() {
   const [name, setName] = useState('');
@@ -19,6 +20,7 @@ export default function RegisterPage() {
       return;
     }
     setLoading(true);
+    clearPageCache();
     router.post('/register', { name, email, password }, {
       onSuccess: () => showToast({ title: 'Akun berhasil dibuat! Selamat bergabung 🎉', type: 'success' }),
       onError: (errors) => showToast({ title: errors.email || errors.name || 'Registrasi gagal.', type: 'error' }),

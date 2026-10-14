@@ -3,12 +3,17 @@
 namespace Modules\Catalog\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Catalog\Models\Product;
 use Modules\Catalog\Services\CatalogQuery;
+use Modules\Orders\Enums\OrderStatus;
+use Modules\Orders\Models\OrderItem;
+use Modules\Review\Models\Review;
 
 class CatalogController extends Controller
 {
@@ -94,8 +99,19 @@ class CatalogController extends Controller
             ->limit(4)
             ->get();
 
+        $productData = $this->serializeProduct($product, true);
+        $approvedReviews = Review::query()->with(['user:id,name', 'order:id,number'])->where('product_id', $product->id)->where('is_approved', true)->latest('id')->get();
+        $aggregate = Review::query()->where('product_id', $product->id)->where('is_approved', true)->selectRaw('COUNT(*) as total_reviews, AVG(rating) as average_rating')->first();
+        $productData['reviews'] = $approvedReviews->map(fn (Review $review): array => $this->serializeReview($review))->values()->all();
+        $productData['review_summary'] = [
+            'average' => $aggregate?->average_rating ? round((float) $aggregate->average_rating, 1) : null,
+            'count' => (int) ($aggregate?->total_reviews ?? 0),
+            'sold' => (int) OrderItem::query()->where('product_id', $product->id)->whereHas('order', fn ($query) => $query->where('status', OrderStatus::Completed))->sum('quantity'),
+        ];
+        $productData['review_eligibility'] = $this->reviewEligibility($product->id, request()->user());
+
         return Inertia::render('Catalog::ProductDetailPage', [
-            'product' => $this->serializeProduct($product, true),
+            'product' => $productData,
             'variants' => $product->variants->map(fn ($variant): array => $this->serializeVariant($variant))->values()->all(),
             'related' => $related->map(fn (Product $relatedProduct): array => $this->serializeProduct($relatedProduct))->values()->all(),
             'relatedProducts' => $related->map(fn (Product $relatedProduct): array => $this->serializeProduct($relatedProduct))->values()->all(),
@@ -141,5 +157,43 @@ class CatalogController extends Controller
         $data['points_estimate'] = intdiv(max(0, (int) ($variant->sale_price ?: $variant->regular_price)), 10000);
 
         return $data;
+    }
+
+    private function serializeReview(Review $review): array
+    {
+        $media = collect($review->media ?? []);
+
+        return [
+            'id' => $review->id,
+            'orderId' => $review->order?->number,
+            'rating' => (int) $review->rating,
+            'comment' => $review->body,
+            'isAnonymous' => (bool) $review->is_anonymous,
+            'userName' => $review->is_anonymous ? 'Pengguna Anonim' : $review->user?->name,
+            'date' => $review->created_at?->translatedFormat('d F Y'),
+            'images' => $media->where('type', 'photo')->map(fn (array $item): string => Storage::disk('public')->url($item['path']))->values()->all(),
+            'video' => ($video = $media->firstWhere('type', 'video')) ? Storage::disk('public')->url($video['path']) : null,
+        ];
+    }
+
+    private function reviewEligibility(int $productId, ?User $user): array
+    {
+        if (! $user?->company_id) {
+            return ['can_write' => false, 'items' => []];
+        }
+
+        $items = OrderItem::query()->with('order:id,number,status,company_id')->where('product_id', $productId)
+            ->whereHas('order', fn ($query) => $query->where('company_id', $user->company_id)->where('status', OrderStatus::Completed))
+            ->whereDoesntHave('reviews', fn ($query) => $query->where('company_id', $user->company_id))
+            ->latest('id')->get();
+
+        return [
+            'can_write' => $items->isNotEmpty(),
+            'items' => $items->map(fn (OrderItem $item): array => [
+                'order_item_id' => $item->id,
+                'order_id' => $item->order_id,
+                'order_number' => $item->order->number,
+            ])->values()->all(),
+        ];
     }
 }

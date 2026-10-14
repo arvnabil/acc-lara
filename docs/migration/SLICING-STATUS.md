@@ -748,3 +748,13 @@ npm run build
 ```
 
 Tautan internal yang sebelumnya belum punya endpoint (`/bantuan` dan `/minta-penawaran`) sekarang terdaftar. Tautan `#/` pada persetujuan Register dan NotFound tetap legacy HashRouter dan tidak dihapus; usulan berikutnya adalah menggantinya dengan rute kebijakan ketika halaman kebijakan tersedia. Tautan eksternal WhatsApp, telepon, email, dan aset pembayaran tidak diuji sebagai rute Laravel.
+
+## Slice 8 — PWA + hardening (in progress)
+
+- PWA manifest dan service worker dihasilkan pada root public: `/manifest.webmanifest` dan `/sw.js`.
+- Ikon `favicon.png` sumber berukuran 203×203; dibuat ikon 192×192, 512×512, dan 512×512 maskable dengan skala/padding tanpa desain ulang.
+- Cache halaman publik menggunakan NetworkFirst (timeout 3 detik, 50 entri, 7 hari); gambar katalog CacheFirst; font Google StaleWhileRevalidate.
+- Navigasi admin, Livewire, autentikasi, akun, cart, checkout, pembayaran, loyalty, review, dan request non-GET tidak masuk cache halaman.
+- Fallback offline tersedia di `/offline.html`; `PwaBadge` menampilkan update, instalasi, dan status offline. Cache `pages` dihapus sebelum login/register.
+- Header keamanan storefront dan named rate limiter sudah ditambahkan. MFA Filament app-based diaktifkan dan diwajibkan pada panel admin.
+- Tes PHP penuh belum dapat dijalankan di environment ini karena PHPUnit gagal membuka bootstrap dan koneksi database testing ditolak; pengguna perlu menjalankan `php artisan test` pada environment lokalnya.

@@ -50,6 +50,8 @@ Boost provides your agent 15+ tools and skills that help agents build Laravel ap
 - Gunakan timezone aplikasi dan MySQL `+07:00` (Asia/Jakarta).
 - Pantau tabel `failed_jobs` dengan `php artisan queue:failed`; jadwalkan backup database harian dan uji pemulihannya.
 - Health check tersedia di `/up`.
+- Upload produksi: `upload_max_filesize=30M`, `post_max_size=40M`, dan Nginx `client_max_body_size 40M`.
+- Jadwal terdaftar memakai `withoutOverlapping()` dan `onOneServer()`; backup database harian wajib dijadwalkan di infrastruktur produksi.
 
 ## Contributing
 

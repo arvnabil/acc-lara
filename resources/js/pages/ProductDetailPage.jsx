@@ -407,7 +407,7 @@ function Gallery({ images, badges, isWishlisted, onToggleWishlist }) {
           alt="Product"
           className="max-w-full max-h-full object-contain p-4 transition-all duration-300"
           onError={(e) => {
-            e.target.src = "https://picsum.photos/seed/product/800/800";
+            e.target.src = "/products/placeholder.png";
           }}
         />
       </div>
@@ -426,7 +426,7 @@ function Gallery({ images, badges, isWishlisted, onToggleWishlist }) {
                 alt=""
                 className="w-full h-full object-contain p-1"
                 onError={(e) => {
-                  e.target.src = "https://picsum.photos/seed/thumb/200/200";
+                  e.target.src = "/products/placeholder.png";
                 }}
               />
             </button>
@@ -618,7 +618,7 @@ function useCountdown(targetDate) {
 
 // ─── Main Page ─────────────────────────────────────────────────────────────
 export default function ProductDetailPage() {
-  const { product: propProduct, variants: propVariants = [], relatedProducts: propRelated = [], brands: propBrands = [], categories: propCategories = [] } = usePage().props;
+  const { product: propProduct, variants: propVariants = [], relatedProducts: propRelated = [], brands: propBrands = [], categories: propCategories = [], whatsapp } = usePage().props;
   const { slug } = useParams();
   const navigate = useNavigate();
   const { addItem } = useCart();
@@ -685,19 +685,19 @@ export default function ProductDetailPage() {
       ? selectedVariant.images
       : product?.images || [];
     if (!raw.length) return [];
-    if (typeof raw[0] === "string" && raw[0].includes(",")) {
-      return raw[0]
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
-    }
-    return raw;
+    const flattened = raw.flatMap((image) => {
+      const value = typeof image === 'string' ? image : image?.url;
+      return String(value || '').split(',').map((part) => part.trim()).filter(Boolean);
+    });
+
+    return [...new Set(flattened)];
   })();
 
   const regularPrice = selectedVariant?.regular_price ?? product?.regular_price;
   const salePrice = selectedVariant?.sale_price ?? product?.sale_price;
   const stock = selectedVariant?.stock ?? product?.stock ?? 0;
   const isOutOfStock = stock === 0;
+  const isDummyPrice = Boolean(product?.is_dummy_price);
   const displayPrice = salePrice || regularPrice;
   const hasDiscount = salePrice && salePrice < regularPrice;
   const discountPct = hasDiscount
@@ -718,7 +718,7 @@ export default function ProductDetailPage() {
   const isRental = (product?.category_ids || []).some(id => RENTAL_CAT_IDS.includes(id))
     || (product?.name || '').toLowerCase().includes('sewa ');
   const isLicense = LICENSE_SKUS.includes((product?.sku || '').toUpperCase());
-  const isFlashSale = Boolean(product?.is_flash_sale || (hasDiscount && !isRental && !isLicense));
+  const isFlashSale = Boolean(product?.is_flash_sale);
 
   // Rental price calculation
   const rentalDays = getRentalDays(rentalStartDate, rentalEndDate);
@@ -730,6 +730,12 @@ export default function ProductDetailPage() {
   const licenseTotal = licensePricePerSeat * licenseSeats;
 
   function handleAddToCart() {
+    if (isDummyPrice) {
+      const phone = String(whatsapp?.phone || '6287780116800').replace(/\D/g, '');
+      const message = encodeURIComponent(`Halo, saya ingin meminta penawaran untuk ${product.name}${product.sku ? ` (SKU: ${product.sku})` : ''}.`);
+      window.open(`https://wa.me/${phone}?text=${message}`, '_blank', 'noopener,noreferrer');
+      return;
+    }
     if (isOutOfStock) return;
 
     if (isRental) {
@@ -787,6 +793,10 @@ export default function ProductDetailPage() {
   }
 
   function handleBuyNow() {
+    if (isDummyPrice) {
+      handleAddToCart();
+      return;
+    }
     if (isOutOfStock) return;
     if (isRental) {
       if (!rentalStartDate || !rentalEndDate || rentalDays <= 0) {
@@ -938,7 +948,7 @@ export default function ProductDetailPage() {
               images={
                 displayImages.length
                   ? displayImages
-                  : [`https://picsum.photos/seed/${product.id}/600/600`]
+                  : ['/products/placeholder.png']
               }
               badges={{
                 left: product.is_featured ? "OFFICIAL MALL" : null,
@@ -1655,7 +1665,7 @@ export default function ProductDetailPage() {
                 <button
                   onClick={handleAddToCart}
                   disabled={isOutOfStock}
-                  className={`flex-1 min-w-0 h-12 rounded-xl font-bold text-[13px] sm:text-[14px] flex items-center justify-center gap-1.5 transition-all border-2
+                  className={`${isDummyPrice ? "w-full" : "flex-1"} min-w-0 h-12 rounded-xl font-bold text-[13px] sm:text-[14px] flex items-center justify-center gap-1.5 transition-all border-2
                     ${
                       added
                         ? "bg-emerald-50 border-emerald-500 text-emerald-700"
@@ -1668,23 +1678,23 @@ export default function ProductDetailPage() {
                     {added ? "check" : isRental ? "event_available" : isLicense ? "key" : "add_shopping_cart"}
                   </span>
                   <span className="truncate">
-                    {added ? "Ditambahkan!" : isRental ? "+ Booking Sekarang" : isLicense ? "+ Tambah Lisensi" : "+ Masukkan Keranjang"}
+                    {isDummyPrice ? "Hubungi via WhatsApp" : added ? "Ditambahkan!" : isRental ? "+ Booking Sekarang" : isLicense ? "+ Tambah Lisensi" : "+ Masukkan Keranjang"}
                   </span>
                 </button>
-                <button
+                {!isDummyPrice && <button
                   onClick={handleBuyNow}
                   disabled={isOutOfStock}
                   className="flex-1 min-w-0 h-12 bg-primary hover:bg-primary/90 text-white rounded-xl font-bold text-[13px] sm:text-[14px] flex items-center justify-center gap-1.5 transition-all disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed shadow-md shadow-primary/20 active:scale-98"
                 >
                   <span className="truncate">
-                    {isRental ? "Booking & Bayar" : isLicense ? "Aktifkan Lisensi" : "Beli Sekarang"}
+                    {isDummyPrice ? "Minta Penawaran" : isRental ? "Booking & Bayar" : isLicense ? "Aktifkan Lisensi" : "Beli Sekarang"}
                   </span>
                   <span className="material-symbols-outlined text-[19px] flex-shrink-0">arrow_forward</span>
-                </button>
+                </button>}
               </div>
 
               {/* Secondary actions */}
-              <div className="grid grid-cols-2 gap-2 sm:gap-3 mt-2.5">
+              {!isDummyPrice && <div className="grid grid-cols-2 gap-2 sm:gap-3 mt-2.5">
                 <Link
                   to="/minta-penawaran"
                   className="h-10 sm:h-11 border border-border-subtle bg-surface/30 rounded-xl text-[11px] sm:text-[12px] font-semibold text-text-primary hover:border-primary hover:text-primary flex items-center justify-center gap-1.5 transition-colors px-2 text-center"
@@ -1705,7 +1715,7 @@ export default function ProductDetailPage() {
                   </span>
                   <span className="truncate">Chat Sales WA</span>
                 </a>
-              </div>
+              </div>}
 
               {/* Trust badges */}
               <div className="grid grid-cols-3 gap-2 pt-2 border-t border-gray-100">
@@ -1950,7 +1960,7 @@ export default function ProductDetailPage() {
               Deskripsi Produk
             </h2>
             <div
-              className="prose prose-sm max-w-none text-gray-600 leading-relaxed text-[13px]"
+              className="product-description prose prose-sm max-w-none text-gray-600 leading-relaxed text-[13px]"
               dangerouslySetInnerHTML={{ __html: product.description }}
               style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
             />
@@ -2004,7 +2014,7 @@ export default function ProductDetailPage() {
         <button
           onClick={handleAddToCart}
           disabled={isOutOfStock}
-          className={`flex-1 min-w-0 h-10 rounded-xl font-bold text-[12px] flex items-center justify-center gap-1 border-2 transition-all active:scale-98
+          className={`${isDummyPrice ? "w-full" : "flex-1"} min-w-0 h-10 rounded-xl font-bold text-[12px] flex items-center justify-center gap-1 border-2 transition-all active:scale-98
             ${added ? "bg-emerald-50 border-emerald-500 text-emerald-700" : isOutOfStock ? "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed" : "border-primary text-primary hover:bg-primary/5"}`}
         >
           <span className="material-symbols-outlined text-[16px] flex-shrink-0">{added ? "check" : isRental ? "event_available" : isLicense ? "key" : "add_shopping_cart"}</span>
@@ -2012,14 +2022,14 @@ export default function ProductDetailPage() {
         </button>
 
         {/* Buy Now button */}
-        <button
+        {!isDummyPrice && <button
           onClick={handleBuyNow}
           disabled={isOutOfStock}
           className="flex-1 min-w-0 h-10 bg-primary hover:bg-primary/90 text-white rounded-xl font-bold text-[12px] flex items-center justify-center gap-1 transition-all disabled:bg-gray-200 disabled:text-gray-400 shadow-sm shadow-primary/20 active:scale-98 px-2"
         >
-          <span className="whitespace-nowrap">{isRental ? "Booking & Bayar" : isLicense ? "Aktifkan Lisensi" : "Beli Sekarang"}</span>
+          <span className="whitespace-nowrap">{isDummyPrice ? "Minta Penawaran" : isRental ? "Booking & Bayar" : isLicense ? "Aktifkan Lisensi" : "Beli Sekarang"}</span>
           <span className="material-symbols-outlined text-[15px] flex-shrink-0">arrow_forward</span>
-        </button>
+        </button>}
       </div>
     </div>
   );

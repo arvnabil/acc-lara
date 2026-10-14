@@ -35,7 +35,7 @@ export default function LicenseConfigModal({ product, isOpen, onClose, onSuccess
   const licenseTotal = pricePerSeat * seats;
 
   const image = (product.images?.[0] || '').split(',')[0].trim() ||
-    `https://picsum.photos/seed/${product.sku || product.id}/200/200`;
+    '/products/placeholder.png';
 
   function createCartPayload() {
     return {

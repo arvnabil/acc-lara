@@ -257,7 +257,7 @@ export default function CheckoutPage() {
               {items.length > 0 ? (
                 items.map(item => (
                   <div key={item.key} className="flex items-center gap-3">
-                    <img src={item.image || 'https://picsum.photos/80/80'} className="w-12 h-12 rounded-lg object-cover" alt={item.name} />
+                    <img src={item.image || '/products/placeholder.png'} className="w-12 h-12 rounded-lg object-cover" alt={item.name} onError={(e) => { e.currentTarget.src = '/products/placeholder.png'; }} />
                     <div className="flex-1">
                       <div className="text-[13px] font-bold text-text-primary line-clamp-1">{item.name}</div>
                       <div className="text-[12px] text-text-secondary">× {item.quantity} unit — {formatPrice(item.price * item.quantity)}</div>
@@ -705,10 +705,10 @@ export default function CheckoutPage() {
                   className="flex items-center gap-3 bg-surface border border-border-subtle rounded-lg p-2.5 sm:p-3 hover:border-primary transition-colors"
                 >
                   <img
-                    src={item.image || `https://picsum.photos/seed/${item.sku || idx}/120/120`}
+                    src={item.image || '/products/placeholder.png'}
                     alt={item.name}
                     className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg object-cover shrink-0"
-                    onError={e => { e.target.src = `https://picsum.photos/seed/${idx}/120/120`; }}
+                    onError={e => { e.target.src = '/products/placeholder.png'; }}
                   />
                   <div className="flex-1 min-w-0">
                     <div className="font-sku text-[10px] sm:text-[11px] text-text-secondary uppercase truncate">{item.sku || 'LOG-960-001308'}</div>

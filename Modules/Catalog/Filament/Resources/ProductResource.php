@@ -5,6 +5,7 @@ namespace Modules\Catalog\Filament\Resources;
 use Filament\Forms;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -14,6 +15,7 @@ use Modules\Catalog\Filament\Resources\ProductResource\Pages;
 use Modules\Catalog\Models\Brand;
 use Modules\Catalog\Models\Category;
 use Modules\Catalog\Models\Product;
+use Modules\Catalog\Models\ProductImage;
 use Modules\Catalog\Models\StockMovement;
 
 class ProductResource extends Resource
@@ -59,6 +61,7 @@ class ProductResource extends Resource
                     Forms\Components\Select::make('type')
                         ->options(['simple' => 'Simple', 'variable' => 'Variable'])
                         ->default('simple')
+                        ->live()
                         ->required(),
 
                     Forms\Components\Select::make('product_type')
@@ -78,50 +81,15 @@ class ProductResource extends Resource
                         ->nullable(),
                 ])->columns(2),
 
-                // ── Pricing & Stock ────────────────────────────────────────
-                Section::make('Pricing & Stock')->schema([
-                    Forms\Components\TextInput::make('regular_price')
-                        ->numeric()
-                        ->required()
-                        ->default(0)
-                        ->prefix('Rp'),
-
-                    Forms\Components\TextInput::make('sale_price')
-                        ->numeric()
-                        ->nullable()
-                        ->prefix('Rp'),
-
-                    Forms\Components\TextInput::make('stock')
-                        ->numeric()
-                        ->required()
-                        ->default(0),
-
-                    Forms\Components\TextInput::make('sort_order')
-                        ->numeric()
-                        ->default(0),
-
-                    Forms\Components\Toggle::make('is_dummy_price')
-                        ->label('Dummy Price')
-                        ->helperText('Harga perlu konfirmasi manual'),
-
-                    Forms\Components\Toggle::make('is_price_outlier')
-                        ->label('Price Outlier'),
-
-                    Forms\Components\Toggle::make('is_featured')
-                        ->label('Featured'),
-
-                    Forms\Components\Toggle::make('is_flash_sale')
-                        ->label('Flash Sale'),
-
-                    Forms\Components\Toggle::make('is_addon')
-                        ->label('Is Add-on'),
-                ])->columns(3),
-
                 // ── Description ────────────────────────────────────────────
                 Section::make('Description')->schema([
-                    Forms\Components\Textarea::make('short_description')
-                        ->rows(3)
-                        ->columnSpanFull(),
+                    Forms\Components\RichEditor::make('short_description')
+                        ->columnSpanFull()
+                        ->toolbarButtons([
+                            'bold', 'italic', 'underline', 'strike',
+                            'bulletList', 'orderedList', 'link',
+                            'h2', 'h3', 'blockquote',
+                        ]),
 
                     Forms\Components\RichEditor::make('description')
                         ->columnSpanFull()
@@ -169,38 +137,84 @@ class ProductResource extends Resource
                         ->columns(3)
                         ->collapsible()
                         ->itemLabel(fn (array $state): ?string => $state['name'] ?? null),
-                ]),
+                ])
+                    ->visible(fn (Get $get): bool => $get('type') === 'variable'),
 
                 // ── Images ─────────────────────────────────────────────────
                 Section::make('Images')->schema([
                     Forms\Components\Repeater::make('images')
                         ->relationship()
                         ->schema([
-                            Forms\Components\TextInput::make('url')
-                                ->url()
+                            Forms\Components\FileUpload::make('url')
+                                ->label('Image')
+                                ->image()
+                                ->disk('public')
+                                ->directory(fn ($record): string => ProductResource::imageDirectory($record))
+                                ->visibility('public')
+                                ->preserveFilenames()
+                                ->maxSize(10240)
                                 ->required()
-                                ->maxLength(500)
-                                ->columnSpan(3),
-
-                            Forms\Components\TextInput::make('sort_order')
-                                ->numeric()
-                                ->default(0),
+                                ->columnSpanFull(),
                         ])
-                        ->columns(4)
+                        ->columns(1)
+                        ->grid(4)
                         ->collapsible()
+                        ->reorderable()
+                        ->orderColumn('sort_order')
                         ->itemLabel(fn (array $state): ?string =>
-                            $state['url'] ? Str::limit($state['url'], 60) : null
+                            $state['url'] ? Str::limit(basename($state['url']), 60) : null
                         ),
                 ]),
             ])->columnSpan(['lg' => 2]),
 
             // ── Sidebar ───────────────────────────────────────────────────
             Group::make()->schema([
+                // ── Pricing & Stock ────────────────────────────────────────
+                Section::make('Pricing & Stock')->schema([
+                    Forms\Components\TextInput::make('regular_price')
+                        ->numeric()
+                        ->required()
+                        ->default(0)
+                        ->prefix('Rp'),
+
+                    Forms\Components\TextInput::make('sale_price')
+                        ->numeric()
+                        ->nullable()
+                        ->prefix('Rp'),
+
+                    Forms\Components\TextInput::make('stock')
+                        ->numeric()
+                        ->required()
+                        ->default(0),
+
+                    Forms\Components\TextInput::make('sort_order')
+                        ->numeric()
+                        ->default(0),
+
+                    Forms\Components\Toggle::make('is_dummy_price')
+                        ->label('Dummy Price')
+                        ->helperText('Harga perlu konfirmasi manual'),
+
+                    Forms\Components\Toggle::make('is_price_outlier')
+                        ->label('Price Outlier'),
+
+                    Forms\Components\Toggle::make('is_featured')
+                        ->label('Featured'),
+
+                    Forms\Components\Toggle::make('is_flash_sale')
+                        ->label('Flash Sale'),
+
+                    Forms\Components\Toggle::make('is_addon')
+                        ->label('Is Add-on'),
+                ])->columns(1),
+
                 Section::make('Categories')->schema([
-                    Forms\Components\CheckboxList::make('categories')
+                    Forms\Components\Select::make('categories')
                         ->relationship('categories', 'name')
+                        ->multiple()
                         ->searchable()
-                        ->bulkToggleable(),
+                        ->preload()
+                        ->native(false),
                 ]),
 
                 Section::make('Meta')->schema([
@@ -221,12 +235,25 @@ class ProductResource extends Resource
         ])->columns(3);
     }
 
+    public static function imageDirectory(mixed $record): string
+    {
+        $product = $record instanceof Product
+            ? $record
+            : ($record instanceof ProductImage ? $record->product : null);
+
+        $brand = $product?->brand?->slug ?? $product?->brand?->name;
+        $name = $product?->slug ?? $product?->name;
+
+        return 'catalog/'.Str::slug($brand ?: 'tanpa-brand').'/'.Str::slug($name ?: 'produk-baru');
+    }
+
     public static function table(Table $table): Table
     {
         return $table
             ->columns([
                 Tables\Columns\ImageColumn::make('images.url')
                     ->label('')
+                    ->disk('public')
                     ->size(48)
                     ->stacked()
                     ->limit(1),
@@ -359,6 +386,11 @@ class ProductResource extends Resource
 
     public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
     {
-        return parent::getEloquentQuery()->withTrashed();
+        return parent::getEloquentQuery()
+            ->withTrashed()
+            ->with([
+                'brand:id,name,slug',
+                'images:id,product_id,url,sort_order',
+            ]);
     }
 }

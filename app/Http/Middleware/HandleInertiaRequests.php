@@ -8,6 +8,7 @@ use Inertia\Middleware;
 use Modules\Catalog\Services\CatalogQuery;
 use Modules\Cart\Models\Cart;
 use Modules\Loyalty\Services\LoyaltyService;
+use Modules\WhatsApp\Models\WhatsAppSetting;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -45,6 +46,11 @@ class HandleInertiaRequests extends Middleware
             'cart' => fn (): array => $user ? ['count' => Cart::query()->where('user_id', $user->id)->withCount('items')->first()?->items_count ?? 0] : ['count' => 0],
             'wishlist' => fn (): array => $user ? ['ids' => $user->wishlists()->pluck('product_id')->values()->all()] : ['ids' => []],
             'loyalty' => fn (): ?array => app(LoyaltyService::class)->sharedProps($user),
+            'whatsapp' => fn (): array => WhatsAppSetting::getInstance()->only([
+                'is_enabled', 'phone', 'message', 'tooltip', 'position', 'show_online_badge',
+                'show_pulse_animation', 'open_in_new_tab', 'offset_bottom', 'offset_side',
+                'icon', 'button_color', 'active_pages',
+            ]),
         ];
     }
 }

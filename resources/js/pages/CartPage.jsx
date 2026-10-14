@@ -71,7 +71,7 @@ export default function CartPage() {
         <div className="lg:col-span-8 flex flex-col gap-space-md">
           {items.map((item, idx) => {
             const itemSubtotal = item.price * item.quantity;
-            const imgSrc = item.image || `https://picsum.photos/seed/${item.sku || idx}/200/200`;
+            const imgSrc = item.image || '/products/placeholder.png';
 
             return (
               <div
@@ -86,7 +86,7 @@ export default function CartPage() {
                       alt={item.name}
                       className="w-full h-full object-cover"
                       onError={e => {
-                        e.target.src = `https://picsum.photos/seed/${idx}/200/200`;
+                        e.target.src = '/products/placeholder.png';
                       }}
                     />
                   </div>

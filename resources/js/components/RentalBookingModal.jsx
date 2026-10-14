@@ -84,7 +84,7 @@ export default function RentalBookingModal({ product, isOpen, onClose, onSuccess
   const rentalDays = getRentalDays(startDate, endDate);
   const rentalTotal = pricePerDay * rentalDays;
   const image = (product.images?.[0] || '').split(',')[0].trim() ||
-    `https://picsum.photos/seed/${product.sku || product.id}/200/200`;
+    '/products/placeholder.png';
 
   // Quick preset duration click
   function handleSelectDuration(days) {

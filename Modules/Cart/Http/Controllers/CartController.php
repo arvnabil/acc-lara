@@ -46,6 +46,7 @@ class CartController extends Controller
         $data = $request->validate(['product_id' => ['required', 'integer'], 'variant_id' => ['nullable', 'integer'], 'quantity' => ['required', 'integer', 'min:1'], 'rental_start' => ['nullable', 'date'], 'rental_end' => ['nullable', 'date'], 'rental_start_time' => ['nullable', 'date_format:H:i'], 'rental_end_time' => ['nullable', 'date_format:H:i']]);
         $product = Product::query()->findOrFail($data['product_id']);
         $variant = ! empty($data['variant_id']) ? Variant::query()->where('product_id', $product->id)->findOrFail($data['variant_id']) : null;
+        abort_if($variant?->is_dummy_price || $product->is_dummy_price, 422, 'Produk dengan harga estimasi hanya dapat dipesan melalui WhatsApp.');
         $stock = $variant?->stock ?? $product->stock;
         $cart = $this->cart($request);
         $item = $cart->items()->where('product_id', $product->id)->where('variant_id', $variant?->id)->where('rental_start', $data['rental_start'] ?? null)->where('rental_end', $data['rental_end'] ?? null)->first();

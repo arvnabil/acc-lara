@@ -3,6 +3,7 @@
  * Reusable product card – matches user's static template screenshot.
  */
 import { useState } from 'react';
+import { usePage } from '@inertiajs/react';
 import { Link, useNavigate } from '../compat/router';
 import { formatPrice } from '../compat/productService';
 import { useCart } from '../compat/context';
@@ -99,18 +100,20 @@ export default function ProductCard({ product }) {
 
   const { wishlist, toggleWishlist: toggleWishlistGlobal, isInWishlist } = useWishlist();
   const { showToast } = useToast();
+  const { whatsapp } = usePage().props;
 
   const isRental = (product?.category_ids || []).some(id => RENTAL_CAT_IDS.includes(id))
     || (product?.name || '').toLowerCase().includes('sewa ');
   const isLicense = LICENSE_SKUS.includes((product?.sku || '').toUpperCase());
   const isOutOfStock = product.stock === 0;
+  const isDummyPrice = Boolean(product?.is_dummy_price);
   const price = product.sale_price || product.regular_price;
   const hasDiscount = Boolean(product.sale_price && product.sale_price < product.regular_price);
-  const isFlashSale = Boolean(product?.is_flash_sale || (hasDiscount && !isRental && !isLicense));
+  const isFlashSale = Boolean(product?.is_flash_sale);
 
   const imageValue = product.images?.[0]?.url ?? product.images?.[0] ?? '';
   const image = (Array.isArray(imageValue) ? imageValue[0] : String(imageValue)).split(',')[0].trim() ||
-    `https://picsum.photos/seed/${product.sku || product.id}/400/400`;
+    '/products/placeholder.png';
 
   // Wishlist state
   const wishlistKey = `prod-${product.id}`;
@@ -119,6 +122,12 @@ export default function ProductCard({ product }) {
   function toggleWishlist(e) {
     e.preventDefault();
     e.stopPropagation();
+    if (isDummyPrice) {
+      const phone = String(whatsapp?.phone || '6287780116800').replace(/\D/g, '');
+      const message = encodeURIComponent(`Halo, saya ingin meminta penawaran untuk ${product.name}${product.sku ? ` (SKU: ${product.sku})` : ''}.`);
+      window.open(`https://wa.me/${phone}?text=${message}`, '_blank', 'noopener,noreferrer');
+      return;
+    }
 
     // Animate
     setWishlistAnim(true);
@@ -213,7 +222,7 @@ export default function ProductCard({ product }) {
             className={`w-full h-full object-contain p-3 transition-all duration-300 group-hover:scale-[1.04] ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
             loading="lazy"
             onError={e => {
-              e.target.src = `https://picsum.photos/seed/${product.id}/400/400`;
+              e.target.src = '/products/placeholder.png';
               setImageLoaded(true);
             }}
           />
@@ -323,7 +332,7 @@ export default function ProductCard({ product }) {
               {added ? 'check' : isRental ? 'event_available' : isLicense ? 'key' : 'add_shopping_cart'}
             </span>
             <span className="truncate">
-              {added ? 'Ditambahkan' : isRental ? '+ Sewa' : isLicense ? '+ Lisensi' : '+Keranjang'}
+              {isDummyPrice ? 'Hubungi WhatsApp' : added ? 'Ditambahkan' : isRental ? '+ Sewa' : isLicense ? '+ Lisensi' : '+Keranjang'}
             </span>
           </button>
 

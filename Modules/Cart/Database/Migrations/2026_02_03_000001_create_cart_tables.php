@@ -15,7 +15,6 @@ return new class extends Migration
             $table->unsignedBigInteger('promo_code_id')->nullable();
             $table->unsignedBigInteger('voucher_id')->nullable();
             $table->timestamps();
-            $table->index('user_id', 'idx_user_id');
             $table->index('session_id', 'idx_session_id');
             $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
             $table->foreign('promo_code_id')->references('id')->on('promo_codes')->nullOnDelete();

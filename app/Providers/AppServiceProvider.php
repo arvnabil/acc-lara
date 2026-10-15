@@ -11,6 +11,8 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Auth\Events\Login;
 use Modules\Cart\Listeners\MergeGuestCartAfterLogin;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\URL;
+use Illuminate\Database\Eloquent\Model;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -27,6 +29,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Model::preventLazyLoading(! app()->isProduction());
+
+        if (app()->isProduction()) {
+            URL::forceScheme('https');
+        }
+
         Event::listen(Login::class, MergeGuestCartAfterLogin::class);
         RateLimiter::for('login', function (Request $request): Limit {
             return Limit::perMinute(5)->by(Str::lower((string) $request->string('email')).'|'.$request->ip());
@@ -35,6 +43,13 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('password.email', function (Request $request): Limit {
             return Limit::perMinute(3)->by(Str::lower((string) $request->string('email')).'|'.$request->ip());
         });
+
+        RateLimiter::for('register', fn (Request $request): Limit => Limit::perMinute(5)->by($request->ip()));
+        RateLimiter::for('loyalty.redeem', fn (Request $request): Limit => Limit::perMinute(10)->by((string) $request->user()?->getAuthIdentifier()));
+        RateLimiter::for('reviews', fn (Request $request): Limit => Limit::perMinute(10)->by((string) $request->user()?->getAuthIdentifier()));
+        RateLimiter::for('checkout', fn (Request $request): Limit => Limit::perMinute(10)->by((string) $request->user()?->getAuthIdentifier()));
+        RateLimiter::for('cart', fn (Request $request): Limit => Limit::perMinute(60)->by($request->user()?->getAuthIdentifier().'|'.$request->ip()));
+        RateLimiter::for('wishlist', fn (Request $request): Limit => Limit::perMinute(60)->by((string) $request->user()?->getAuthIdentifier()));
 
         // Implicitly grant 'administrator' role all permissions
         Gate::before(function ($user, $ability) {

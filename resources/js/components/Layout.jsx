@@ -9,6 +9,7 @@ import { useState, useEffect, useRef } from "react";
 import { useCart, useWishlist } from "../compat/context";
 import { useAuth } from "../compat/context";
 import Footer from "./Footer";
+import PwaBadge from "./PwaBadge";
 
 // ─── Category icons ──────────────────────────────────────────────────────────
 function getCatIcon(slug = "") {
@@ -45,9 +46,15 @@ function MegaMenu({ categories }) {
   const topCats = categories
     .filter((c) => !c.parent_id && !c.is_addon && !c.is_brand_group)
     .slice(0, 8);
-  const activeCat = hovered ?? topCats[0];
-  const children = activeCat
-    ? categories.filter((c) => c.parent_id === activeCat.id).slice(0, 6)
+  const firstWithChildren = topCats.find((cat) =>
+    categories.some((child) => child.parent_id === cat.id),
+  );
+  const activeCat = hovered ?? firstWithChildren ?? topCats[0];
+  const panelCat = categories.some((child) => child.parent_id === activeCat?.id)
+    ? activeCat
+    : firstWithChildren;
+  const children = panelCat
+    ? categories.filter((c) => c.parent_id === panelCat.id).slice(0, 6)
     : [];
 
   return (
@@ -75,29 +82,31 @@ function MegaMenu({ categories }) {
                 </div>
               </div>
             </div>
-            <span className="material-symbols-outlined text-[16px] opacity-60">
-              chevron_right
-            </span>
+            {categories.some((child) => child.parent_id === cat.id) && (
+              <span className="material-symbols-outlined text-[16px] opacity-60">
+                chevron_right
+              </span>
+            )}
           </Link>
         ))}
       </div>
 
       {/* Right: sub-categories */}
-      <div className="flex-1 p-6 flex flex-col justify-between overflow-y-auto">
-        {activeCat && (
+      {children.length > 0 && <div className="flex-1 p-6 flex flex-col justify-between overflow-y-auto">
+        {panelCat && (
           <div>
             <div className="mb-4 border-b border-border-subtle pb-3 flex justify-between items-start">
               <div>
                 <h3 className="font-title-card text-[16px] font-bold text-text-primary">
-                  {activeCat.name}
+                  {panelCat.name}
                 </h3>
                 <p className="text-[12px] text-text-secondary">
-                  Eksplorasi katalog {activeCat.name} untuk menemukan solusi
+                  Eksplorasi katalog {panelCat.name} untuk menemukan solusi
                   terbaik.
                 </p>
               </div>
               <Link
-                to={`/katalog?kategori=${activeCat.slug}`}
+                to={`/katalog?kategori=${panelCat.slug}`}
                 className="text-[12px] text-primary font-semibold hover:underline flex items-center gap-0.5"
               >
                 Lihat Semua{" "}
@@ -107,17 +116,16 @@ function MegaMenu({ categories }) {
               </Link>
             </div>
             <div className="grid grid-cols-3 gap-4">
-              {children.length > 0 ? (
-                children.map((child, i) => (
+              {children.map((child) => (
                   <Link
                     key={child.id}
                     to={`/katalog?kategori=${child.slug}`}
                     className="bg-card-bg border border-border-subtle rounded-lg p-3 hover:border-primary transition-all group flex flex-col justify-between"
                   >
                     <div
-                      className="w-full h-[80px] rounded bg-surface mb-2 bg-cover bg-center"
+                      className="w-full h-[80px] rounded bg-white mb-2 bg-contain bg-no-repeat bg-center"
                       style={{
-                        backgroundImage: `url('https://picsum.photos/seed/${child.id}/300/100')`,
+                        backgroundImage: "url('/products/placeholder-category.png')",
                       }}
                     />
                     <div>
@@ -129,14 +137,7 @@ function MegaMenu({ categories }) {
                       </span>
                     </div>
                   </Link>
-                ))
-              ) : (
-                <div className="col-span-3 py-8 text-center text-text-secondary">
-                  <p className="text-[13px]">
-                    Silakan lihat semua produk di kategori ini.
-                  </p>
-                </div>
-              )}
+                ))}
             </div>
           </div>
         )}
@@ -160,7 +161,7 @@ function MegaMenu({ categories }) {
             </Link>
           </div>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }
@@ -431,9 +432,9 @@ function Header({ categories }) {
         </div>
       </div>
 
-      {/* Desktop navigation bar with mega menu */}
-      <div className="hidden lg:block h-[48px] bg-card-bg border-b border-border-subtle">
-        <div className="max-w-[1440px] mx-auto px-margin h-full flex items-center gap-space-xl">
+      {/* Navigation bar with mega menu (desktop and tablet) */}
+      <div className="hidden md:block h-[48px] bg-card-bg border-b border-border-subtle">
+        <div className="max-w-[1440px] mx-auto px-gutter lg:px-margin h-full flex items-center gap-space-xl">
           {/* Mega menu trigger */}
           <div
             ref={megaRef}
@@ -442,6 +443,8 @@ function Header({ categories }) {
             onMouseLeave={closeMega}
           >
             <button
+              type="button"
+              onClick={() => setShowMega((visible) => !visible)}
               className="h-full bg-primary hover:bg-primary-container text-on-primary px-4 flex items-center gap-space-sm font-label-sm text-label-sm transition-colors"
               aria-expanded={showMega}
               aria-haspopup="true"
@@ -712,7 +715,9 @@ function BottomNav() {
 
 // ─── Layout ──────────────────────────────────────────────────────────────────
 export default function Layout() {
-  const { categoryMenu: categories = [] } = usePage().props;
+  const { categoryMenu: categories = [], whatsapp = {} } = usePage().props;
+  const whatsappPhone = String(whatsapp.phone || '6287780116800').replace(/\D/g, '');
+  const whatsappHref = `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(whatsapp.message || 'Halo ACTiV, saya ingin konsultasi mengenai produk.')}`;
 
   // Close mega menu & scroll to top on route change
   const location = useLocation();
@@ -733,14 +738,16 @@ export default function Layout() {
       </main>
       <Footer />
       <BottomNav />
+      <PwaBadge />
 
       {/* Floating WhatsApp Bubble Chat (Sesuai Static Template) */}
+      {whatsapp.is_enabled !== false && (
       <aside
         className={`fixed right-4 lg:right-8 z-40 transition-all duration-300 ${isProductDetail ? "bottom-[126px] lg:bottom-8" : "bottom-[72px] lg:bottom-8"}`}
       >
         {/* Desktop version: Pill badge dengan teks CS (24 Jam) */}
         <a
-          href="https://wa.me/6287780116800"
+          href={whatsappHref}
           target="_blank"
           rel="noopener noreferrer"
           className="hidden lg:flex items-center gap-space-sm bg-[#128C7E] hover:bg-[#075E54] text-white px-4 py-2.5 rounded-full shadow-[0_8px_20px_rgba(11,28,48,0.18)] transition-all transform hover:-translate-y-0.5 group"
@@ -752,14 +759,14 @@ export default function Layout() {
               Chat CS (24 Jam)
             </span>
             <span className="font-label-sm text-label-sm font-bold leading-tight mt-0.5">
-              +62 877-8011-6800
+              {whatsapp.tooltip || 'Chat CS (24 Jam)'}
             </span>
           </div>
         </a>
 
         {/* Mobile version: Round FAB button */}
         <a
-          href="https://wa.me/6287780116800"
+          href={whatsappHref}
           target="_blank"
           rel="noopener noreferrer"
           className="lg:hidden w-[52px] h-[52px] rounded-full bg-[#128C7E] active:bg-[#075E54] text-white flex items-center justify-center shadow-lg transition-transform active:scale-95"
@@ -768,6 +775,7 @@ export default function Layout() {
           <span className="material-symbols-outlined text-[26px]">chat</span>
         </a>
       </aside>
+      )}
     </div>
   );
 }

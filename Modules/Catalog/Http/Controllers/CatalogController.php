@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Catalog\Models\Product;
@@ -52,6 +53,7 @@ class CatalogController extends Controller
         $base = fn () => Product::query()
             ->with(['brand:id,name,slug,logo_url', 'categories:id,name,slug,full_path,parent_id', 'images:id,product_id,url,sort_order', 'attributes:id,attributable_type,attributable_id,name,value'])
             ->where('is_addon', false)
+            ->where('is_price_outlier', false)
             ->orderBy('sort_order');
 
         return Inertia::render('Catalog::HomePage', [
@@ -64,7 +66,7 @@ class CatalogController extends Controller
             'brands' => collect($this->catalog->brands())->map(fn (array $brand): array => [...$brand, 'logo' => $brand['logo_url']])->take(9)->values()->all(),
             'featuredProducts' => $base()->where('is_featured', true)->limit(8)->get()->map(fn (Product $product): array => $this->serializeProduct($product))->values()->all(),
             'saleProducts' => $base()->whereNotNull('sale_price')->limit(8)->get()->map(fn (Product $product): array => $this->serializeProduct($product))->values()->all(),
-            'flashSaleProducts' => [],
+            'flashSaleProducts' => $base()->where('is_flash_sale', true)->limit(8)->get()->map(fn (Product $product): array => $this->serializeProduct($product))->values()->all(),
         ]);
     }
 
@@ -81,6 +83,7 @@ class CatalogController extends Controller
                     ->with(['images:id,variant_id,url,sort_order', 'attributes:id,attributable_type,attributable_id,name,value']),
             ])
             ->where('is_addon', false)
+            ->where('is_price_outlier', false)
             ->where('slug', $slug)
             ->first();
 
@@ -91,9 +94,15 @@ class CatalogController extends Controller
         }
 
         $related = Product::query()
-            ->with(['brand:id,name,slug,logo_url', 'images:id,product_id,url,sort_order'])
+            ->with([
+                'brand:id,name,slug,logo_url',
+                'categories:id,name,slug,full_path,parent_id',
+                'images:id,product_id,url,sort_order',
+                'attributes:id,attributable_type,attributable_id,name,value',
+            ])
             ->where('products.id', '<>', $product->id)
             ->where('is_addon', false)
+            ->where('is_price_outlier', false)
             ->whereHas('categories', fn ($query) => $query->whereIn('categories.id', $product->categories->modelKeys()))
             ->orderBy('sort_order')
             ->limit(4)
@@ -137,7 +146,10 @@ class CatalogController extends Controller
     private function serializeProduct(Product $product, bool $detail = false): array
     {
         $data = $product->toArray();
-        $data['images'] = $product->images->pluck('url')->values()->all();
+        $data['images'] = $product->images
+            ->map(fn ($image): string => $this->imageUrl($image->url))
+            ->values()
+            ->all();
         $data['category_ids'] = $product->categories->modelKeys();
         $data['attributes'] = $product->attributes->toArray();
         $data['points_estimate'] = intdiv(max(0, (int) ($product->sale_price ?: $product->regular_price)), 10000);
@@ -152,11 +164,21 @@ class CatalogController extends Controller
     private function serializeVariant($variant): array
     {
         $data = $variant->toArray();
-        $data['images'] = $variant->images->pluck('url')->values()->all();
+        $data['images'] = $variant->images
+            ->map(fn ($image): string => $this->imageUrl($image->url))
+            ->values()
+            ->all();
         $data['attributes'] = $variant->attributes->toArray();
         $data['points_estimate'] = intdiv(max(0, (int) ($variant->sale_price ?: $variant->regular_price)), 10000);
 
         return $data;
+    }
+
+    private function imageUrl(string $path): string
+    {
+        return Str::startsWith($path, ['http://', 'https://', '/'])
+            ? $path
+            : Storage::disk('public')->url($path);
     }
 
     private function serializeReview(Review $review): array

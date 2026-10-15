@@ -4,6 +4,8 @@ namespace Modules\Catalog\Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Modules\Catalog\Models\Brand;
 use Modules\Catalog\Models\Category;
 use Modules\Catalog\Models\Product;
@@ -105,6 +107,40 @@ class CatalogSeeder extends Seeder
     private function seedProducts(): void
     {
         $products = json_decode(file_get_contents($this->dataPath . '/products-index.json'), true);
+        $productDetails = json_decode(file_get_contents($this->dataPath . '/products.json'), true);
+        $detailsBySku = [];
+        $detailsByName = [];
+        $tinymceDescriptions = json_decode(
+            file_get_contents(base_path('Front/src/data/produk-deskripsi-tinymce.json')),
+            true
+        );
+        $descriptionBySku = [];
+        $descriptionByName = [];
+        $normalizeName = static fn (?string $value): string => preg_replace(
+            '/\s+/',
+            ' ',
+            strtolower(html_entity_decode(trim($value ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8'))
+        );
+
+        foreach ($tinymceDescriptions as $description) {
+            if (!empty($description['sku'])) {
+                $descriptionBySku[$description['sku']] = $description;
+            }
+
+            if (!empty($description['nama'])) {
+                $descriptionByName[$normalizeName($description['nama'])] = $description;
+            }
+        }
+
+        foreach ($productDetails as $detail) {
+            if (!empty($detail['sku'])) {
+                $detailsBySku[$detail['sku']] = $detail;
+            }
+
+            if (!empty($detail['name'])) {
+                $detailsByName[$normalizeName($detail['name'])] = $detail;
+            }
+        }
 
         // Build brand slug→id map
         $brandMap = Brand::pluck('id', 'slug')->toArray();
@@ -134,6 +170,10 @@ class CatalogSeeder extends Seeder
 
         foreach ($products as $row) {
             $localBrandId = isset($row['brand_id']) ? ($sourceBrandMap[$row['brand_id']] ?? null) : null;
+            $description = $descriptionBySku[$row['sku'] ?? '']
+                ?? ($descriptionByName[$normalizeName($row['name'] ?? null)] ?? []);
+            $detail = $detailsBySku[$row['sku'] ?? '']
+                ?? ($detailsByName[$normalizeName($row['name'] ?? null)] ?? []);
 
             $product = Product::updateOrCreate(
                 ['slug' => $row['slug']],
@@ -141,11 +181,13 @@ class CatalogSeeder extends Seeder
                     'sku'              => $row['sku'] ?? null,
                     'name'             => $row['name'],
                     'type'             => $row['type'] ?? 'simple',
-                    'product_type'     => 'regular',
+                    'product_type'     => $row['product_type'] ?? 'regular',
+                    'short_description' => $description['deskripsi_singkat'] ?? null,
+                    'description'      => $description['deskripsi'] ?? null,
                     'regular_price'    => $row['regular_price'] ?? 0,
                     'sale_price'       => $row['sale_price'] ?? null,
                     'is_dummy_price'   => $row['is_dummy_price'] ?? false,
-                    'is_price_outlier' => false,
+                    'is_price_outlier' => $detail['is_price_outlier'] ?? false,
                     'is_featured'      => $row['is_featured'] ?? false,
                     'is_flash_sale'    => false,
                     'is_addon'         => $row['is_addon'] ?? false,
@@ -158,16 +200,39 @@ class CatalogSeeder extends Seeder
 
             // Images — comma-separated in source
             if (!empty($row['images'])) {
+                $existingImages = ProductImage::query()
+                    ->where('product_id', $product->id)
+                    ->get(['id', 'url', 'sort_order']);
+                $existingImageNames = $existingImages
+                    ->mapWithKeys(fn (ProductImage $image): array => [basename(parse_url($image->url, PHP_URL_PATH) ?: $image->url) => $image])
+                    ->all();
+                $existingImageOrders = $existingImages->keyBy('sort_order');
+
                 foreach ($row['images'] as $imgBlock) {
                     $urls = array_map('trim', explode(',', $imgBlock));
                     foreach (array_values($urls) as $order => $url) {
                         if (!$url) {
                             continue;
                         }
+
+                        $filename = basename(parse_url($url, PHP_URL_PATH) ?: $url);
+                        $existingByOrder = $existingImageOrders->get($order);
+                        if ($existingByOrder && ! Str::startsWith($existingByOrder->url, ['http://', 'https://']) && ! Storage::disk('public')->exists($existingByOrder->url)) {
+                            $existingByOrder->update(['url' => $url]);
+                            $existingImageNames[$filename] = $existingByOrder;
+                            continue;
+                        }
+
+                        if (isset($existingImageNames[$filename])) {
+                            continue;
+                        }
+
                         ProductImage::firstOrCreate(
                             ['product_id' => $product->id, 'url' => $url],
                             ['sort_order' => $order]
                         );
+                        $existingImageNames[$filename] = true;
+                        $existingImageOrders[$order] = true;
                     }
                 }
             }

@@ -1,12 +1,25 @@
 import { useState } from 'react';
+import { router } from '../compat/router';
 
 export default function RfqPage() {
   const [submitted, setSubmitted] = useState(false);
 
   function handleSubmit(e) {
     e.preventDefault();
-    setSubmitted(true);
-    window.scrollTo(0, 0);
+    const fields = e.currentTarget.elements;
+    router.post('/minta-penawaran', {
+      company_name: fields[0].value,
+      name: fields[1].value,
+      email: fields[2].value,
+      phone: fields[3].value,
+      message: fields[4].value,
+    }, {
+      preserveScroll: true,
+      onSuccess: () => {
+        setSubmitted(true);
+        window.scrollTo(0, 0);
+      },
+    });
   }
 
   if (submitted) {
@@ -101,3 +114,5 @@ export default function RfqPage() {
     </main>
   );
 }
+
+

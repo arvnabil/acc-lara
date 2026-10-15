@@ -652,3 +652,109 @@ rata_rata_dan_jumlah_review_publik_benar
 ```
 
 `php artisan test --list-tests` menemukan 107 entri termasuk dataset Pest; keluaran lengkap dijalankan setelah implementasi. Permission `approve_review` tersinkron melalui `module:permissions-sync`; ReviewResource memiliki filter rating/approved/product, lihat media melalui record, serta aksi setujui/sembunyikan.
+
+## Slice 7 prerequisites
+
+Branch `slice-7` dibuat dari `main` pada commit Slice 6 (`c93fa32`, merge Slice 6).
+
+### Bukti sumber Front
+
+Jumlah baris berkas yang diaudit:
+
+```text
+Front/src/App.jsx	80
+Front/src/pages/RfqPage.jsx	103
+Front/src/pages/BantuanPage.jsx	173
+Front/src/pages/HomePage.jsx	568
+Front/src/components/Layout.jsx	778
+Front/src/components/Footer.jsx	124
+```
+
+`App.jsx` memiliki 16 deklarasi rute: `/cari`, `/kategori`, `/login`, `/register`, `/lupa-password`, `/`, `/katalog`, `/produk/:slug`, `/keranjang`, `/wishlist`, `/checkout` (ProtectedRoute), `/minta-penawaran`, `/lacak-pesanan`, `/bantuan`, `/akun` (ProtectedRoute), dan wildcard `*` (NotFound). Halaman login, register, dan lupa-password tanpa Layout; halaman kategori dan pencarian juga full-screen; halaman lain berada di Layout.
+
+`RfqPage.jsx` memiliki empat field visual: Nama Perusahaan / Pembeli, Nama PIC / Pejabat belanja, Email Pelanggan, dan Nomor WhatsApp Aktif, serta textarea Daftar Kebutuhan Hardware & Spesifikasi Proyek. Submit asli hanya mengganti tampilan lokal; pesan suksesnya adalah `Permintaan Terkirim` dan `Terima kasih! Permintaan penawaran Anda (RFQ) telah kami terima. Tim sales kami akan merespons dalam waktu kurang dari 2 jam kerja.`
+
+`BantuanPage.jsx` berisi empat kelompok FAQ statis (Pemesanan, Pengiriman, Garansi & Produk, Pembayaran), tiga kartu kontak (WhatsApp `https://wa.me/6287780116800`, telepon `tel:02150886800`, dan tautan RFQ), serta CTA WhatsApp yang sama. Tidak ada konstanta kontak yang dipakai; kontak tetap literal seperti sumber.
+
+NotFound inline di `App.jsx` adalah blok ikon `error`, judul `Halaman tidak ditemukan`, dan tautan `href="#/"` berlabel `Kembali ke Beranda`.
+
+`HERO_SLIDES` berisi empat slide `banner-only` berurutan: `diskon-yealink.png` ke `/katalog?brand=yealink`, `october-sale.png` ke `/katalog?sort=sale`, `zoom.png` ke `/katalog?q=zoom`, dan `zoom-educate.png` ke `/katalog?q=zoom`. Tiga slide sisanya adalah slide default dengan badge, teks, gambar latar, CTA utama, dan CTA alternatif. Urutan akhir sumber adalah empat banner lalu tiga default. Sumber tidak membedakan gambar mobile.
+
+### Route list Tahap 0
+
+Keluaran `php artisan route:list` pada branch awal menunjukkan rute storefront yang sudah ada, termasuk `/`, `/katalog`, `/produk/{slug}`, `/cari`, `/kategori`, `/keranjang`, `/checkout`, `/wishlist`, `/akun`, `/login`, `/register`, `/lupa-password`, `/reset-password/{token}`, `/lacak-pesanan`, `/pembayaran/{number}`, dan `/sukses/{number}`. Pada saat audit, `/minta-penawaran` dan `/bantuan` belum ada, dan belum ada fallback route untuk NotFound. Rute `/reset-password/{token}` dan `/sukses/{number}` berasal dari alur Laravel/Checkout dan bukan deklarasi eksplisit di `Front/src/App.jsx`.
+
+### Internal href yang belum memiliki rute Laravel pada audit
+
+`/minta-penawaran` (dipakai Layout, Footer, Bantuan, ProductDetail) dan `/bantuan` (dipakai Layout, Footer, Login, Register, ForgotPassword, LacakPesanan) belum terdaftar. Tautan `#/` pada persetujuan Register dan inline NotFound adalah hash-link legacy dari HashRouter, bukan rute Laravel. Tautan eksternal `wa.me`, `tel:`, `mailto:`, dan aset `/method/qris-accommerce.png` tidak dihitung sebagai rute aplikasi. Tautan internal tersebut dipertahankan dan akan diberi endpoint pada Slice 7; tidak ada tautan yang dihapus.
+
+## Slice 7 closeout
+
+### Tahap A: Content backend
+
+- `ContentServiceProvider` hanya membagikan prop `banners` untuk route bernama `home`; query membatasi `is_active`, `starts_at`, dan `expires_at`, kemudian mengurutkan `sort_order` dan `id`. Catalog tidak mengimpor Content.
+- `BannerSeeder` memakai empat aset `public/banner` dan `updateOrCreate` berdasarkan `image_url`: `diskon-yealink.png`, `october-sale.png`, `zoom.png`, dan `zoom-educate.png`. `mobile_image_url` tidak dipakai karena JSX sumber tidak membedakan gambar mobile.
+- `HomePage` mempertahankan tiga slide default dan menyusun banner aktif dari props di posisi empat slide banner awal. Bila prop kosong, empat slide banner bawaan tetap dipakai.
+- RFQ memiliki GET `/minta-penawaran` dan POST `/minta-penawaran` dengan `throttle:5,1`. Form sumber tidak mempunyai `name` attribute; handler mengambil lima elemen form berdasarkan urutannya dan mengirim `company_name`, `name`, `email`, `phone`, serta `message`. Tidak ada field tambahan yang perlu digabungkan ke `message` selain textarea tersebut. Status awal `new`; notifikasi dikirim ke `config('site.sales_email')` menggunakan `Mail::raw`.
+- `/bantuan` merender halaman statis sumber. Fallback route merender `Catalog::NotFound` dengan status HTTP 404. Tidak dibuat halaman 500/503.
+
+### Tahap B: Filament dan tes
+
+BannerResource mendukung unggah `FileUpload` ke disk `public`, urutan, jadwal, dan aktif. RfqRequestResource hanya daftar, filter status, view modal, dan edit status; create/delete dinonaktifkan. Permission Content disinkronkan:
+
+```text
+Memulai sinkronisasi permissions dari modul aktif..
+Sinkronisasi selesai: 1 dibuat, 3 dihapus, 63 total izin aktif.
+```
+
+Nama tes Slice 7:
+
+```text
+RFQ tersimpan dengan field benar dan email sales dikirim
+RFQ validation fails for missing fields
+RFQ sixth attempt in one minute returns 429
+inactive and scheduled-out banners are not shared to the home page
+home page renders with no banner records
+help page renders successfully
+random URL returns the Inertia NotFound page with status 404
+internal storefront links return 200 or 302
+```
+
+Hasil tes fitur:
+
+```text
+php artisan test tests/Feature/Slice7ContentTest.php --compact
+Tests: 8 passed (58 assertions)
+```
+
+### Bukti migrasi dan validasi
+
+Diff stat sumber Front terhadap hasil migrasi:
+
+```text
+RfqPage.jsx      17 insertions(+), 2 deletions(-)
+BantuanPage.jsx   3 insertions(+), 1 deletion(-)
+HomePage.jsx     21 insertions(+), 47 deletions(-)
+```
+
+Perubahan teks tidak dilakukan pada markup sumber. Perubahan non-markup adalah import `react-router-dom` ke compat router pada Bantuan, handler submit RFQ dari state lokal ke `router.post`, empat slide banner-only dibaca dari prop server dengan fallback ke array sumber, dan penambahan slide prop ke `HeroCarousel`.
+
+```text
+php artisan schema:compare-erd
+ERD_COMPARE_OK columns/types/nullability/FKs/unique verified
+
+npm run build
+✓ built in 9.04s
+```
+
+Tautan internal yang sebelumnya belum punya endpoint (`/bantuan` dan `/minta-penawaran`) sekarang terdaftar. Tautan `#/` pada persetujuan Register dan NotFound tetap legacy HashRouter dan tidak dihapus; usulan berikutnya adalah menggantinya dengan rute kebijakan ketika halaman kebijakan tersedia. Tautan eksternal WhatsApp, telepon, email, dan aset pembayaran tidak diuji sebagai rute Laravel.
+
+## Slice 8 — PWA + hardening (in progress)
+
+- PWA manifest dan service worker dihasilkan pada root public: `/manifest.webmanifest` dan `/sw.js`.
+- Ikon `favicon.png` sumber berukuran 203×203; dibuat ikon 192×192, 512×512, dan 512×512 maskable dengan skala/padding tanpa desain ulang.
+- Cache halaman publik menggunakan NetworkFirst (timeout 3 detik, 50 entri, 7 hari); gambar katalog CacheFirst; font Google StaleWhileRevalidate.
+- Navigasi admin, Livewire, autentikasi, akun, cart, checkout, pembayaran, loyalty, review, dan request non-GET tidak masuk cache halaman.
+- Fallback offline tersedia di `/offline.html`; `PwaBadge` menampilkan update, instalasi, dan status offline. Cache `pages` dihapus sebelum login/register.
+- Header keamanan storefront dan named rate limiter sudah ditambahkan. MFA Filament app-based diaktifkan dan diwajibkan pada panel admin.
+- Tes PHP penuh belum dapat dijalankan di environment ini karena PHPUnit gagal membuka bootstrap dan koneksi database testing ditolak; pengguna perlu menjalankan `php artisan test` pada environment lokalnya.

@@ -23,6 +23,7 @@ class CatalogQuery
                     ->with('images:id,variant_id,url,sort_order'),
             ])
             ->where('is_addon', false)
+            ->where('is_price_outlier', false)
             ->whereNull('deleted_at');
 
         if ($filters['category'] ?? null) {

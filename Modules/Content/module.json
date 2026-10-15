@@ -4,5 +4,5 @@
   "enabled": true,
   "priority": 50,
   "requires": [],
-  "permissions": ["view_any_banner", "view_banner", "create_banner", "update_banner", "delete_banner", "view_any_rfq_request", "view_rfq_request", "create_rfq_request", "update_rfq_request", "delete_rfq_request"]
+  "permissions": ["view_any_banner", "view_banner", "create_banner", "update_banner", "delete_banner", "view_any_rfq_request", "view_rfq_request", "update_rfq"]
 }

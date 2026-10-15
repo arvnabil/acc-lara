@@ -41,6 +41,18 @@ php artisan boost:install
 
 Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
 
+## Server
+
+- Cron: `* * * * * php artisan schedule:run`
+- Worker queue: `php artisan queue:work --stop-when-empty` pada shared hosting, atau gunakan Supervisor untuk worker yang selalu hidup.
+- Set `QUEUE_CONNECTION` sesuai driver produksi dan jalankan `php artisan storage:link` serta `php artisan optimize` setelah deploy.
+- Pastikan batas `upload_max_filesize` dan `post_max_size` PHP serta `client_max_body_size` Nginx mencukupi untuk gambar katalog.
+- Gunakan timezone aplikasi dan MySQL `+07:00` (Asia/Jakarta).
+- Pantau tabel `failed_jobs` dengan `php artisan queue:failed`; jadwalkan backup database harian dan uji pemulihannya.
+- Health check tersedia di `/up`.
+- Upload produksi: `upload_max_filesize=30M`, `post_max_size=40M`, dan Nginx `client_max_body_size 40M`.
+- Jadwal terdaftar memakai `withoutOverlapping()` dan `onOneServer()`; backup database harian wajib dijadwalkan di infrastruktur produksi.
+
 ## Contributing
 
 Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).

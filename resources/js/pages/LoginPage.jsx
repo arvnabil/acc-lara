@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, router } from '../compat/router';
 import { useToast } from '../compat/context';
+import { clearPageCache } from '../pwa';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -12,6 +13,7 @@ export default function LoginPage() {
   function handleSubmit(e) {
     e.preventDefault();
     setLoading(true);
+    clearPageCache();
     router.post('/login', { email, password }, {
       onSuccess: () => showToast({ title: 'Login berhasil! Selamat datang 👋', type: 'success' }),
       onError: (errors) => showToast({ title: errors.email || 'Email atau password tidak valid.', type: 'error' }),

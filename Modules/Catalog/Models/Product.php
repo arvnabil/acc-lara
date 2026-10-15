@@ -48,6 +48,51 @@ class Product extends Model
         'is_addon' => 'boolean',
     ];
 
+    public function setDescriptionAttribute(?string $value): void
+    {
+        $this->attributes['description'] = self::sanitizeRichText($value);
+    }
+
+    public function setShortDescriptionAttribute(?string $value): void
+    {
+        $this->attributes['short_description'] = self::sanitizeRichText($value);
+    }
+
+    private static function sanitizeRichText(?string $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return $value;
+        }
+
+        $document = new \DOMDocument('1.0', 'UTF-8');
+        libxml_use_internal_errors(true);
+        $document->loadHTML('<?xml encoding="UTF-8"><div>'.$value.'</div>', LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+        libxml_clear_errors();
+
+        foreach (iterator_to_array($document->getElementsByTagName('*')) as $element) {
+            if (in_array(strtolower($element->nodeName), ['script', 'style', 'iframe', 'object', 'embed'], true)) {
+                $element->parentNode?->removeChild($element);
+                continue;
+            }
+
+            foreach (iterator_to_array($element->attributes ?? []) as $attribute) {
+                $name = strtolower($attribute->name);
+                $attributeValue = trim($attribute->value);
+                if (str_starts_with($name, 'on') || $name === 'style' || (($name === 'href' || $name === 'src') && preg_match('/^(?:javascript|vbscript|data):/i', $attributeValue))) {
+                    $element->removeAttribute($attribute->name);
+                }
+            }
+        }
+
+        $container = $document->getElementsByTagName('div')->item(0);
+        $html = '';
+        foreach (iterator_to_array($container?->childNodes ?? []) as $child) {
+            $html .= $document->saveHTML($child);
+        }
+
+        return trim($html);
+    }
+
     public function brand(): BelongsTo
     {
         return $this->belongsTo(Brand::class);

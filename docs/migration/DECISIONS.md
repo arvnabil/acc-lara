@@ -42,3 +42,6 @@ Keputusan yang sudah diambil (D) dan yang masih terbuka (O). Update tiap ada per
 |---|---|---|
 | O-16 | Plafon subsidi Gold, Platinum, dan Diamond sementara Rp50.000 per voucher | Nilai sementara untuk mengaktifkan benefit dan tes; belum keputusan bisnis final. Ditandai `BELUM DIPUTUSKAN, O-16` di konfigurasi. |
 | D-12 | Poin pengembalian memiliki `expires_at` 24 bulan sejak tanggal pengembalian | Konsisten dengan masa kedaluwarsa poin standar dan mencegah poin refund tidak pernah kedaluwarsa. |
+| D-13 | Service worker storefront memakai NetworkFirst untuk halaman publik dan tidak mencegat admin, akun, auth, cart, checkout, loyalty, review, atau request non-GET | Mencegah kebocoran state pengguna dan menjaga panel Filament tetap dinamis. |
+| D-14 | CSP diterapkan sebagai `Content-Security-Policy-Report-Only` terlebih dahulu | Memungkinkan audit pelanggaran tanpa memutus Inertia, font, dan gambar katalog yang sudah berjalan. |
+| D-15 | Password literal yang pernah ada di riwayat Git wajib diganti di semua lingkungan | Audit riwayat menemukan kredensial lama pada commit awal; kredensial aktif sekarang berasal dari environment. |

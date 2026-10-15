@@ -25,6 +25,7 @@ class CreateOrderAction
             foreach ($cart->items as $item) {
                 $product = $item->product_id ? $item->product()->lockForUpdate()->firstOrFail() : null;
                 $variant = $item->variant_id ? $item->variant()->lockForUpdate()->firstOrFail() : null;
+                abort_if($variant?->is_dummy_price || $product?->is_dummy_price, 422, 'Produk dengan harga estimasi hanya dapat dipesan melalui WhatsApp.');
                 $stockModel = $variant ?: $product;
                 abort_if($stockModel->stock < $item->quantity, 422, 'Stok produk tidak mencukupi.');
                 $price = $variant?->sale_price ?: $variant?->regular_price ?: ($product->sale_price ?: $product->regular_price);

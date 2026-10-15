@@ -33,6 +33,14 @@ class UserFactory extends Factory
         ];
     }
 
+    public function configure(): static
+    {
+        return $this->afterCreating(function (User $user): void {
+            // Test admins start with MFA configured; individual tests can clear it explicitly.
+            $user->saveAppAuthenticationSecret('JBSWY3DPEHPK3PXP');
+        });
+    }
+
     /**
      * Indicate that the model's email address should be unverified.
      */

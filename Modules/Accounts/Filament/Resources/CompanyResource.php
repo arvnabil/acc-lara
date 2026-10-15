@@ -2,6 +2,8 @@
 
 namespace Modules\Accounts\Filament\Resources;
 
+use Modules\Accounts\Filament\Resources\CompanyResource\Schemas\CompanyForm;
+use Modules\Accounts\Filament\Resources\CompanyResource\Tables\CompanyTable;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Resources\Resource;
@@ -24,46 +26,12 @@ class CompanyResource extends Resource
 
     public static function form(Schema $form): Schema
     {
-        return $form->schema([
-            Section::make('Company')->schema([
-                Forms\Components\TextInput::make('name')->required()->maxLength(255),
-                Forms\Components\TextInput::make('npwp')
-                    ->label('NPWP')
-                    ->maxLength(30)
-                    ->unique(ignoreRecord: true),
-                Forms\Components\TextInput::make('sppkp')->maxLength(50),
-                Forms\Components\TextInput::make('phone')->tel()->maxLength(30),
-                Forms\Components\TextInput::make('email')->email()->maxLength(255),
-                Forms\Components\Textarea::make('address')->rows(3)->columnSpanFull(),
-                Forms\Components\Toggle::make('is_verified')->label('Terverifikasi'),
-            ])->columns(2),
-        ]);
+        return CompanyForm::schema($form);
     }
 
     public static function table(Table $table): Table
     {
-        return $table
-            ->columns([
-                Tables\Columns\TextColumn::make('name')->searchable()->sortable(),
-                Tables\Columns\TextColumn::make('npwp')->label('NPWP')->searchable(),
-                Tables\Columns\TextColumn::make('email')->searchable(),
-                Tables\Columns\TextColumn::make('users_count')->counts('users')->label('Users')->sortable(),
-                Tables\Columns\IconColumn::make('is_verified')->boolean()->label('Verified'),
-                Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable()->toggleable(isToggledHiddenByDefault: true),
-            ])
-            ->filters([
-                Tables\Filters\TernaryFilter::make('is_verified')->label('Verification'),
-            ])
-            ->actions([
-                Actions\EditAction::make(),
-                Actions\DeleteAction::make(),
-            ])
-            ->bulkActions([
-                Actions\BulkActionGroup::make([
-                    Actions\DeleteBulkAction::make(),
-                ]),
-            ])
-            ->defaultSort('name');
+        return CompanyTable::table($table);
     }
 
     public static function getPages(): array

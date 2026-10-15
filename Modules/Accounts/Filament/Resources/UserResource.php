@@ -2,6 +2,8 @@
 
 namespace Modules\Accounts\Filament\Resources;
 
+use Modules\Accounts\Filament\Resources\UserResource\Schemas\UserForm;
+use Modules\Accounts\Filament\Resources\UserResource\Tables\UserTable;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Resources\Resource;
@@ -21,37 +23,12 @@ class UserResource extends Resource
 
     public static function form(Schema $form): Schema
     {
-        return $form->schema([
-            Section::make('User')->schema([
-                Forms\Components\TextInput::make('name')->required()->maxLength(255),
-                Forms\Components\TextInput::make('email')->email()->required()->unique(ignoreRecord: true),
-                Forms\Components\TextInput::make('password')->password()->revealable()->label('Password')
-                    ->dehydrated(fn (?string $state): bool => filled($state))
-                    ->required(fn (string $operation): bool => $operation === 'create'),
-                Forms\Components\TextInput::make('phone')->tel()->maxLength(30),
-                Forms\Components\Select::make('company_id')->label('Storefront Company')
-                    ->relationship('company', 'name')->searchable()->preload()->nullable(),
-                Forms\Components\Select::make('company_role')->label('Company Role')
-                    ->options(['admin' => 'Admin', 'member' => 'Member'])->nullable(),
-                Forms\Components\Select::make('roles')->label('Panel Roles')
-                    ->relationship('roles', 'name')->multiple()->searchable()->preload(),
-            ])->columns(2),
-        ]);
+        return UserForm::schema($form);
     }
 
     public static function table(Table $table): Table
     {
-        return $table
-            ->modifyQueryUsing(fn ($query) => $query->with(['company', 'roles']))
-            ->columns([
-                Tables\Columns\TextColumn::make('name')->searchable()->sortable(),
-                Tables\Columns\TextColumn::make('email')->searchable()->sortable(),
-                Tables\Columns\TextColumn::make('company.name')->label('Company')->searchable()->placeholder('Internal staff'),
-                Tables\Columns\TextColumn::make('company_role')->label('Company Role'),
-                Tables\Columns\TextColumn::make('roles.name')->label('Panel Roles')->badge(),
-            ])
-            ->actions([Actions\EditAction::make(), Actions\DeleteAction::make()])
-            ->bulkActions([Actions\BulkActionGroup::make([Actions\DeleteBulkAction::make()])]);
+        return UserTable::table($table);
     }
 
     public static function getPages(): array

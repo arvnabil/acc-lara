@@ -2,6 +2,8 @@
 
 namespace Modules\Content\Filament\Resources;
 
+use Modules\Content\Filament\Resources\RfqRequestResource\Schemas\RfqRequestForm;
+use Modules\Content\Filament\Resources\RfqRequestResource\Tables\RfqRequestTable;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Resources\Resource;
@@ -22,17 +24,12 @@ class RfqRequestResource extends Resource
 
     public static function form(Schema $form): Schema
     {
-        return $form->schema([Section::make('RFQ')->schema([
-            Forms\Components\TextInput::make('name')->required()->maxLength(255), Forms\Components\TextInput::make('email')->email()->required()->maxLength(255), Forms\Components\TextInput::make('phone')->required()->maxLength(30), Forms\Components\TextInput::make('company_name')->required()->maxLength(255),
-            Forms\Components\Select::make('status')->options(['new' => 'New', 'in_progress' => 'In Progress', 'quoted' => 'Quoted', 'closed' => 'Closed'])->required(), Forms\Components\Textarea::make('message')->columnSpanFull(),
-        ])->columns(2)]);
+        return RfqRequestForm::schema($form);
     }
 
     public static function table(Table $table): Table
     {
-        return $table->columns([
-            Tables\Columns\TextColumn::make('name')->searchable()->sortable(), Tables\Columns\TextColumn::make('email')->searchable(), Tables\Columns\TextColumn::make('company_name')->searchable(), Tables\Columns\TextColumn::make('status')->badge(), Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
-        ])->filters([Tables\Filters\SelectFilter::make('status')->options(['new' => 'New', 'in_progress' => 'In Progress', 'quoted' => 'Quoted', 'closed' => 'Closed'])])->actions([Actions\ViewAction::make(), Actions\EditAction::make()])->defaultSort('created_at', 'desc');
+        return RfqRequestTable::table($table);
     }
 
     public static function getPages(): array

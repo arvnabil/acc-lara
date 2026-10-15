@@ -2,6 +2,8 @@
 
 namespace Modules\Catalog\Filament\Resources;
 
+use Modules\Catalog\Filament\Resources\CategoryResource\Schemas\CategoryForm;
+use Modules\Catalog\Filament\Resources\CategoryResource\Tables\CategoryTable;
 use Filament\Forms;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -27,96 +29,12 @@ class CategoryResource extends Resource
 
     public static function form(Schema $form): Schema
     {
-        return $form->schema([
-            Section::make()->schema([
-                Forms\Components\TextInput::make('name')
-                    ->required()
-                    ->maxLength(255)
-                    ->live(onBlur: true)
-                    ->afterStateUpdated(fn (Forms\Set $set, ?string $state) => $set('slug', \Illuminate\Support\Str::slug($state ?? ''))),
-
-                Forms\Components\TextInput::make('slug')
-                    ->required()
-                    ->maxLength(255)
-                    ->unique(ignoreRecord: true),
-
-                Forms\Components\Select::make('parent_id')
-                    ->label('Parent Category')
-                    ->relationship('parent', 'name')
-                    ->searchable()
-                    ->preload()
-                    ->nullable(),
-
-                Forms\Components\TextInput::make('full_path')
-                    ->maxLength(500)
-                    ->nullable(),
-
-                Forms\Components\Toggle::make('is_addon')
-                    ->label('Is Add-on Category'),
-
-                Forms\Components\Toggle::make('is_brand_group')
-                    ->label('Is Brand Group'),
-
-                Forms\Components\TextInput::make('sort_order')
-                    ->numeric()
-                    ->default(0),
-            ])->columns(2),
-        ]);
+        return CategoryForm::schema($form);
     }
 
     public static function table(Table $table): Table
     {
-        return $table
-            ->columns([
-                Tables\Columns\TextColumn::make('name')
-                    ->searchable()
-                    ->sortable(),
-
-                Tables\Columns\TextColumn::make('parent.name')
-                    ->label('Parent')
-                    ->searchable()
-                    ->sortable()
-                    ->placeholder('(root)'),
-
-                Tables\Columns\TextColumn::make('full_path')
-                    ->toggleable()
-                    ->limit(50),
-
-                Tables\Columns\IconColumn::make('is_addon')
-                    ->boolean()
-                    ->label('Add-on'),
-
-                Tables\Columns\IconColumn::make('is_brand_group')
-                    ->boolean()
-                    ->label('Brand Group'),
-
-                Tables\Columns\TextColumn::make('product_count')
-                    ->label('Products')
-                    ->sortable(),
-
-                Tables\Columns\TextColumn::make('sort_order')
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-            ])
-            ->filters([
-                Tables\Filters\TrashedFilter::make(),
-                Tables\Filters\SelectFilter::make('parent_id')
-                    ->label('Parent')
-                    ->relationship('parent', 'name'),
-            ])
-            ->actions([
-                \Filament\Actions\EditAction::make(),
-                \Filament\Actions\DeleteAction::make(),
-                \Filament\Actions\RestoreAction::make(),
-            ])
-            ->bulkActions([
-                \Filament\Actions\BulkActionGroup::make([
-                    \Filament\Actions\DeleteBulkAction::make(),
-                    \Filament\Actions\RestoreBulkAction::make(),
-                    \Filament\Actions\ForceDeleteBulkAction::make(),
-                ]),
-            ])
-            ->defaultSort('name');
+        return CategoryTable::table($table);
     }
 
     public static function getPages(): array

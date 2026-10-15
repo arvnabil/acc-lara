@@ -2,6 +2,8 @@
 
 namespace Modules\Promo\Filament\Resources;
 
+use Modules\Promo\Filament\Resources\VoucherResource\Schemas\VoucherForm;
+use Modules\Promo\Filament\Resources\VoucherResource\Tables\VoucherTable;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables;
@@ -16,28 +18,14 @@ class VoucherResource extends Resource
     protected static string | \UnitEnum | null $navigationGroup = 'Promo';
     protected static ?int $navigationSort = 20;
 
-    public static function form(Schema $form): Schema { return $form->schema([]); }
+    public static function form(Schema $form): Schema
+    {
+        return VoucherForm::schema($form);
+    }
 
     public static function table(Table $table): Table
     {
-        return $table
-            ->modifyQueryUsing(fn ($query) => $query->with(['company', 'category']))
-            ->columns([
-                Tables\Columns\TextColumn::make('code')->searchable()->copyable(),
-                Tables\Columns\TextColumn::make('title')->searchable(),
-                Tables\Columns\TextColumn::make('type')->badge(),
-                Tables\Columns\TextColumn::make('discount_value')->numeric(),
-                Tables\Columns\TextColumn::make('company.name')->label('Company')->searchable(),
-                Tables\Columns\TextColumn::make('source')->badge(),
-                Tables\Columns\TextColumn::make('category.name')->label('Category'),
-                Tables\Columns\TextColumn::make('expires_at')->dateTime()->sortable(),
-                Tables\Columns\TextColumn::make('used_at')->dateTime()->placeholder('Unused'),
-            ])
-            ->filters([
-                Tables\Filters\SelectFilter::make('source')->options(['tier_bronze' => 'Tier Bronze', 'redeem' => 'Redeem', 'free_shipping' => 'Free Shipping']),
-                Tables\Filters\SelectFilter::make('type')->options(['fixed' => 'Fixed', 'percent' => 'Percent', 'free_shipping' => 'Free Shipping']),
-            ])
-            ->defaultSort('created_at', 'desc');
+        return VoucherTable::table($table);
     }
 
     public static function getPages(): array { return ['index' => Pages\ListVouchers::route('/')]; }

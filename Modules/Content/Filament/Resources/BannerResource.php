@@ -2,6 +2,8 @@
 
 namespace Modules\Content\Filament\Resources;
 
+use Modules\Content\Filament\Resources\BannerResource\Schemas\BannerForm;
+use Modules\Content\Filament\Resources\BannerResource\Tables\BannerTable;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Resources\Resource;
@@ -22,20 +24,12 @@ class BannerResource extends Resource
 
     public static function form(Schema $form): Schema
     {
-        return $form->schema([Section::make('Banner')->schema([
-            Forms\Components\TextInput::make('title')->required()->maxLength(255), Forms\Components\FileUpload::make('image_url')->required()->image()->disk('public')->directory('banners')->visibility('public'),
-            Forms\Components\FileUpload::make('mobile_image_url')->image()->disk('public')->directory('banners')->visibility('public'), Forms\Components\TextInput::make('target_url')->maxLength(500),
-            Forms\Components\TextInput::make('sort_order')->numeric()->default(0)->required(), Forms\Components\Toggle::make('is_active')->default(true),
-            Forms\Components\DateTimePicker::make('starts_at'), Forms\Components\DateTimePicker::make('expires_at'),
-        ])->columns(2)]);
+        return BannerForm::schema($form);
     }
 
     public static function table(Table $table): Table
     {
-        return $table->columns([
-            Tables\Columns\TextColumn::make('title')->searchable()->sortable(), Tables\Columns\ImageColumn::make('image_url'),
-            Tables\Columns\TextColumn::make('sort_order')->sortable(), Tables\Columns\IconColumn::make('is_active')->boolean(), Tables\Columns\TextColumn::make('starts_at')->dateTime(), Tables\Columns\TextColumn::make('expires_at')->dateTime(),
-        ])->actions([Actions\EditAction::make(), Actions\DeleteAction::make()])->bulkActions([Actions\BulkActionGroup::make([Actions\DeleteBulkAction::make()])]);
+        return BannerTable::table($table);
     }
 
     public static function getPages(): array

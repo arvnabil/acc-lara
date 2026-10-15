@@ -2,6 +2,8 @@
 
 namespace Modules\Promo\Filament\Resources;
 
+use Modules\Promo\Filament\Resources\PromoCodeResource\Schemas\PromoCodeForm;
+use Modules\Promo\Filament\Resources\PromoCodeResource\Tables\PromoCodeTable;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Resources\Resource;
@@ -21,45 +23,12 @@ class PromoCodeResource extends Resource
 
     public static function form(Schema $form): Schema
     {
-        return $form->schema([
-            Section::make('Promo Code')->schema([
-                Forms\Components\TextInput::make('code')
-                    ->required()->maxLength(50)->unique(ignoreRecord: true)
-                    ->dehydrateStateUsing(fn (?string $state): string => strtoupper(trim($state ?? ''))),
-                Forms\Components\TextInput::make('label')->required()->maxLength(255),
-                Forms\Components\Select::make('type')->required()->options(['percent' => 'Percent', 'fixed' => 'Fixed'])->live(),
-                Forms\Components\TextInput::make('value')->required()->numeric()->minValue(0),
-                Forms\Components\TextInput::make('min_order')->label('Minimum Order')->required()->numeric()->minValue(0)->default(0),
-                Forms\Components\TextInput::make('max_uses')->label('Quota')->numeric()->minValue(1)->nullable(),
-                Forms\Components\TextInput::make('used_count')->label('Used Count')->numeric()->minValue(0)->default(0)->readOnly(),
-                Forms\Components\DateTimePicker::make('valid_from')->label('Valid From'),
-                Forms\Components\DateTimePicker::make('valid_until')->label('Valid Until')->after('valid_from'),
-                Forms\Components\Toggle::make('is_active')->label('Active')->default(true),
-            ])->columns(2),
-        ]);
+        return PromoCodeForm::schema($form);
     }
 
     public static function table(Table $table): Table
     {
-        return $table
-            ->columns([
-                Tables\Columns\TextColumn::make('code')->searchable()->sortable()->copyable(),
-                Tables\Columns\TextColumn::make('label')->searchable(),
-                Tables\Columns\TextColumn::make('type')->badge(),
-                Tables\Columns\TextColumn::make('value')->numeric(),
-                Tables\Columns\TextColumn::make('used_count')->label('Used'),
-                Tables\Columns\TextColumn::make('max_uses')->label('Quota')->placeholder('Unlimited'),
-                Tables\Columns\TextColumn::make('valid_from')->dateTime()->sortable(),
-                Tables\Columns\TextColumn::make('valid_until')->dateTime()->sortable(),
-                Tables\Columns\IconColumn::make('is_active')->boolean()->label('Active'),
-            ])
-            ->filters([
-                Tables\Filters\SelectFilter::make('type')->options(['percent' => 'Percent', 'fixed' => 'Fixed']),
-                Tables\Filters\TernaryFilter::make('is_active')->label('Active'),
-            ])
-            ->actions([Actions\EditAction::make(), Actions\DeleteAction::make()])
-            ->bulkActions([Actions\BulkActionGroup::make([Actions\DeleteBulkAction::make()])])
-            ->defaultSort('created_at', 'desc');
+        return PromoCodeTable::table($table);
     }
 
     public static function getPages(): array

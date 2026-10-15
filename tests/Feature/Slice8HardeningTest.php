@@ -44,6 +44,14 @@ test('service worker denylist excludes sensitive storefront and admin routes', f
         ->and($serviceWorker)->toContain('/offline.html');
 });
 
+test('service worker caches public Inertia page responses for offline visits', function () {
+    $serviceWorker = file_get_contents(public_path('sw.js'));
+
+    expect($serviceWorker)->toContain('X-Inertia')
+        ->and($serviceWorker)->toContain('inertia-pages')
+        ->and($serviceWorker)->toContain('NetworkFirst');
+});
+
 test('storefront mutating routes use named rate limits', function () {
     expect(Route::getRoutes()->getByName('login.submit')->middleware())->toContain('throttle:login')
         ->and(Route::getRoutes()->getByName('register.submit')->middleware())->toContain('throttle:register')

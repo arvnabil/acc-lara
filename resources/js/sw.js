@@ -37,11 +37,29 @@ self.addEventListener('activate', (event) => {
 const matchPrecached = (url) => caches.open(precacheName)
     .then((cache) => cache.match(new URL(url, self.location.origin).pathname));
 
+const publicPagePaths = ['/','/katalog','/kategori','/cari','/bantuan'];
+const isPublicPagePath = (pathname) => publicPagePaths.includes(pathname)
+    || pathname.startsWith('/produk/');
+
+registerRoute(
+    ({ request, url }) => request.method === 'GET'
+        && request.headers.get('X-Inertia') === 'true'
+        && !isDeniedNavigation(url.pathname)
+        && isPublicPagePath(url.pathname),
+    new NetworkFirst({
+        cacheName: 'inertia-pages',
+        networkTimeoutSeconds: 3,
+        plugins: [
+            new ExpirationPlugin({ maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 * 7 }),
+            new CacheableResponsePlugin({ statuses: [0, 200] }),
+        ],
+    }),
+);
+
 registerRoute(
     ({ request, url }) => request.mode === 'navigate'
         && !isDeniedNavigation(url.pathname)
-        && (['/', '/katalog', '/kategori', '/cari', '/bantuan'].includes(url.pathname)
-            || url.pathname.startsWith('/produk/')),
+        && isPublicPagePath(url.pathname),
     new NetworkFirst({
         cacheName: 'pages',
         networkTimeoutSeconds: 3,

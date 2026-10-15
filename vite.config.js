@@ -6,6 +6,7 @@ import laravel from 'laravel-vite-plugin';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
+    base: '/',
     plugins: [
         react(),
         laravel({
@@ -14,6 +15,8 @@ export default defineConfig({
         }),
         VitePWA({
             registerType: 'prompt',
+            base: '/',
+            scope: '/',
             srcDir: 'resources/js',
             filename: 'sw.js',
             manifestFilename: 'manifest.webmanifest',
@@ -33,6 +36,7 @@ export default defineConfig({
                 background_color: '#F8F9FA',
                 display: 'standalone',
                 orientation: 'portrait-primary',
+                id: '/',
                 start_url: '/',
                 scope: '/',
                 icons: [

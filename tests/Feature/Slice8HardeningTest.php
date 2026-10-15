@@ -1,22 +1,34 @@
 <?php
 
-use Database\Seeders\AdminUserSeeder;
 use App\Models\User;
+use Database\Seeders\AdminUserSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
 use Modules\Catalog\Models\Product;
 use Spatie\Permission\Models\Role;
+use Tests\TestCase;
 
-uses(Tests\TestCase::class, RefreshDatabase::class);
+uses(TestCase::class, RefreshDatabase::class);
 
 test('pwa manifest and service worker are published with the required scope', function () {
     $manifest = json_decode(file_get_contents(public_path('manifest.webmanifest')), true, flags: JSON_THROW_ON_ERROR);
 
     expect($manifest['name'])->toBe('Accommerce.id')
         ->and($manifest['short_name'])->toBe('Accommerce')
+        ->and($manifest['id'])->toBe('/')
         ->and($manifest['scope'])->toBe('/')
         ->and($manifest['start_url'])->toBe('/')
         ->and(file_exists(public_path('sw.js')))->toBeTrue();
+});
+
+test('pwa build registers the root service worker and does not use the build scope', function () {
+    $appBundle = collect(glob(public_path('build/assets/app-*.js')) ?: [])
+        ->map(fn (string $path): string => file_get_contents($path))
+        ->implode("\n");
+
+    expect($appBundle)->toContain('/sw.js')
+        ->not->toContain('/build/sw.js')
+        ->and(file_get_contents(resource_path('views/app.blade.php')))->toContain('<link rel="manifest" href="/manifest.webmanifest">');
 });
 
 test('service worker denylist excludes sensitive storefront and admin routes', function () {

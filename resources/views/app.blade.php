@@ -4,6 +4,7 @@
         <meta charset="utf-8">
         <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport">
         <meta name="theme-color" content="#003599">
+        <link rel="manifest" href="/manifest.webmanifest">
         <title inertia>Accommerce.id</title>
         <link rel="icon" type="image/png" href="/favicon.png">
         <link rel="preconnect" href="https://fonts.googleapis.com">

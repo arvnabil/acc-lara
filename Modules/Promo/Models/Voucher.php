@@ -5,7 +5,7 @@ namespace Modules\Promo\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Modules\Accounts\Models\Company;
+use Modules\Clients\Models\Client;
 use Modules\Catalog\Models\Category;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\Cart\Models\Cart;
@@ -18,7 +18,7 @@ class Voucher extends Model
     use HasFactory;
     protected static function newFactory(): VoucherFactory { return VoucherFactory::new(); }
     protected $fillable = [
-        'code', 'title', 'type', 'discount_value', 'min_order', 'company_id', 'category_id',
+        'code', 'title', 'type', 'discount_value', 'min_order', 'client_id', 'category_id',
         'source', 'points_cost', 'used_at', 'expires_at', 'quarter_key', 'month_key', 'slot',
     ];
 
@@ -34,9 +34,9 @@ class Voucher extends Model
         ];
     }
 
-    public function company(): BelongsTo
+    public function client(): BelongsTo
     {
-        return $this->belongsTo(Company::class);
+        return $this->belongsTo(Client::class);
     }
 
     public function category(): BelongsTo
@@ -48,3 +48,7 @@ class Voucher extends Model
     public function orders(): HasMany { return $this->hasMany(Order::class); }
     public function redemptions(): HasMany { return $this->hasMany(Redemption::class); }
 }
+
+
+
+

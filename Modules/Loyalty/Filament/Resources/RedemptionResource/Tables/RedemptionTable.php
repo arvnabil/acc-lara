@@ -17,7 +17,7 @@ class RedemptionTable
     public static function table(Table $table): Table
         {
             return $table->columns([
-                Tables\Columns\TextColumn::make('loyaltyAccount.company.name')->label('Company')->searchable(),
+                Tables\Columns\TextColumn::make('loyaltyAccount.client.name')->label('Client')->searchable(),
                 Tables\Columns\TextColumn::make('type')->badge(), Tables\Columns\TextColumn::make('points')->numeric(),
                 Tables\Columns\TextColumn::make('amount_idr')->numeric(), Tables\Columns\TextColumn::make('status')->badge(),
                 Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
@@ -27,5 +27,7 @@ class RedemptionTable
             ])->defaultSort('created_at', 'desc');
         }
 }
+
+
 
 

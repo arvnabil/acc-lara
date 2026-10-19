@@ -4,7 +4,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
-use Modules\Accounts\Models\Company;
+use Modules\Clients\Models\Client;
 use Modules\Cart\Models\Cart;
 use Modules\Cart\Models\CartItem;
 use Modules\Cart\Models\Wishlist;
@@ -39,7 +39,7 @@ test('every D3 factory creates valid persisted data', function (): void {
 });
 
 test('RESTRICT foreign keys reject deleting referenced parents', function (): void {
-    $company = Company::factory()->create();
+    $company = Client::factory()->create();
     LoyaltyAccount::factory()->for($company)->create();
     expect(fn () => $company->delete())->toThrow(QueryException::class);
 
@@ -56,15 +56,15 @@ test('order voucher FK is RESTRICT to preserve financial history', function (): 
 });
 
 test('voucher quota uniques preserve nullable redeem keys', function (): void {
-    $company = Company::factory()->create();
-    Voucher::factory()->create(['company_id' => $company->id, 'source' => 'tier_bronze', 'quarter_key' => '2026-Q4']);
-    expect(fn () => Voucher::factory()->create(['company_id' => $company->id, 'source' => 'tier_bronze', 'quarter_key' => '2026-Q4']))->toThrow(QueryException::class);
+    $company = Client::factory()->create();
+    Voucher::factory()->create(['client_id' => $company->id, 'source' => 'tier_bronze', 'quarter_key' => '2026-Q4']);
+    expect(fn () => Voucher::factory()->create(['client_id' => $company->id, 'source' => 'tier_bronze', 'quarter_key' => '2026-Q4']))->toThrow(QueryException::class);
 
-    Voucher::factory()->create(['company_id' => $company->id, 'source' => 'free_shipping', 'month_key' => '2026-10', 'slot' => 1]);
-    expect(fn () => Voucher::factory()->create(['company_id' => $company->id, 'source' => 'free_shipping', 'month_key' => '2026-10', 'slot' => 1]))->toThrow(QueryException::class);
+    Voucher::factory()->create(['client_id' => $company->id, 'source' => 'free_shipping', 'month_key' => '2026-10', 'slot' => 1]);
+    expect(fn () => Voucher::factory()->create(['client_id' => $company->id, 'source' => 'free_shipping', 'month_key' => '2026-10', 'slot' => 1]))->toThrow(QueryException::class);
 
-    Voucher::factory()->create(['company_id' => $company->id, 'source' => 'redeem', 'quarter_key' => null]);
-    Voucher::factory()->create(['company_id' => $company->id, 'source' => 'redeem', 'quarter_key' => null]);
+    Voucher::factory()->create(['client_id' => $company->id, 'source' => 'redeem', 'quarter_key' => null]);
+    Voucher::factory()->create(['client_id' => $company->id, 'source' => 'redeem', 'quarter_key' => null]);
     expect(Voucher::where('source', 'redeem')->count())->toBe(2);
 });
 
@@ -77,15 +77,15 @@ test('point ledger and redemption idempotency keys are unique', function (): voi
 });
 
 test('database enums reject values outside the ERD lists', function (): void {
-    $company = Company::factory()->create();
+    $company = Client::factory()->create();
     $user = App\Models\User::factory()->create();
     expect(fn () => DB::table('orders')->insert([
-        'number' => 'BAD-ENUM-1', 'user_id' => $user->id, 'company_id' => $company->id, 'status' => 'not_a_status',
+        'number' => 'BAD-ENUM-1', 'user_id' => $user->id, 'client_id' => $company->id, 'status' => 'not_a_status',
         'goods_subtotal' => 1, 'grand_total' => 1, 'shipping_address' => json_encode(['address' => 'x']),
     ]))->toThrow(QueryException::class);
 
     expect(fn () => DB::table('loyalty_accounts')->insert([
-        'company_id' => $company->id, 'current_tier' => 'not_a_tier', 'tier_valid_until' => now()->addYear(),
+        'client_id' => $company->id, 'current_tier' => 'not_a_tier', 'tier_valid_until' => now()->addYear(),
     ]))->toThrow(QueryException::class);
 
     $account = LoyaltyAccount::factory()->create();
@@ -99,3 +99,7 @@ test('migration fresh and rollback down succeed on the MySQL test database', fun
         ->and(Artisan::call('migrate:rollback', ['--database' => 'mysql']))->toBe(0)
         ->and(Artisan::call('migrate:fresh', ['--database' => 'mysql']))->toBe(0);
 });
+
+
+
+

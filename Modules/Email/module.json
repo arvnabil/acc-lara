@@ -1,0 +1,8 @@
+{
+    "name": "Email",
+    "description": "SMTP dan notifikasi email aplikasi.",
+    "enabled": true,
+    "priority": 35,
+    "requires": ["Orders", "Clients"],
+    "permissions": ["manage_email_settings"]
+}

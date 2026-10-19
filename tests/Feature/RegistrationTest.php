@@ -4,8 +4,10 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Support\Facades\Event;
-use Modules\Accounts\Events\CompanyRegistered;
-use Modules\Accounts\Models\Company;
+use Modules\Clients\Events\ClientRegistered;
+use Modules\Clients\Models\Client;
+use Modules\Loyalty\Models\LoyaltyAccount;
+use Modules\Loyalty\Models\PointLedger;
 
 uses(Tests\TestCase::class, RefreshDatabase::class);
 
@@ -21,24 +23,24 @@ test('storefront registration creates company and admin user in single transacti
         'email' => 'john@accommerce.id',
         'password' => 'secret1234',
         'phone' => '081299998888',
-        'account_type' => 'company',
+        'account_type' => 'client',
         'company_name' => 'PT Maju Bersama',
         'npwp' => '12.345.678.9-012.000',
     ]);
 
     $response->assertStatus(201);
 
-    $company = Company::where('name', 'PT Maju Bersama')->first();
+    $company = Client::where('name', 'PT Maju Bersama')->first();
     expect($company)->not->toBeNull();
     expect($company->npwp)->toBe('12.345.678.9-012.000');
 
     $user = User::where('email', 'john@accommerce.id')->first();
     expect($user)->not->toBeNull();
-    expect($user->company_id)->toBe($company->id);
+    expect($user->client_id)->toBe($company->id);
     expect($user->company_role)->toBe('admin');
 
-    Event::assertDispatched(CompanyRegistered::class, function ($event) use ($company) {
-        return $event->company->id === $company->id;
+    Event::assertDispatched(ClientRegistered::class, function ($event) use ($company) {
+        return $event->client->id === $company->id;
     });
 });
 
@@ -59,13 +61,41 @@ test('storefront registration rejects duplicate email', function () {
              ->assertJsonValidationErrors(['email']);
 });
 
+test('registration referral awards configured points to the referrer', function (): void {
+    $referrerClient = Client::factory()->create();
+    $referrer = User::factory()->create([
+        'client_id' => $referrerClient->id,
+        'referral_code' => 'REF123456',
+    ]);
+    LoyaltyAccount::factory()->create([
+        'client_id' => $referrerClient->id,
+        'points_balance' => 0,
+    ]);
+    config(['loyalty.referral.registration_points' => 250]);
+
+    $response = $this->postJson('/register', [
+        'name' => 'Referred Customer',
+        'email' => 'referred@example.test',
+        'password' => 'secret1234',
+        'referral_code' => 'ref123456',
+    ]);
+
+    $response->assertCreated();
+    $newUser = User::where('email', 'referred@example.test')->firstOrFail();
+    $account = LoyaltyAccount::where('client_id', $referrerClient->id)->firstOrFail();
+
+    expect($newUser->referred_by_user_id)->toBe($referrer->id)
+        ->and($account->points_balance)->toBe(250)
+        ->and(PointLedger::where('idempotency_key', "referral_registration:{$newUser->id}")->value('points'))->toBe(250);
+});
+
 test('storefront registration rolls back company creation on failure', function () {
-    $initialCompanyCount = Company::count();
+    $initialClientCount = Client::count();
 
     // Trigger failure during user creation by using invalid data or mock
     try {
         DB::transaction(function () {
-            $company = Company::create(['name' => 'Failing Company Inc']);
+            $company = Client::create(['name' => 'Failing Client Inc']);
             // Force an exception inside transaction
             throw new \Exception('Simulated database error during user creation');
         });
@@ -73,6 +103,10 @@ test('storefront registration rolls back company creation on failure', function 
         // Expected exception
     }
 
-    expect(Company::count())->toBe($initialCompanyCount);
-    expect(Company::where('name', 'Failing Company Inc')->exists())->toBeFalse();
+    expect(Client::count())->toBe($initialClientCount);
+    expect(Client::where('name', 'Failing Client Inc')->exists())->toBeFalse();
 });
+
+
+
+

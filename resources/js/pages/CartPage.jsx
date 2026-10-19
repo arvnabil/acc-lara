@@ -6,13 +6,19 @@ import { useState } from 'react';
 import { usePage } from '@inertiajs/react';
 import { Link } from '../compat/router';
 import { useCart } from '../compat/context';
+import { useToast } from '../compat/context';
 import { formatPrice } from '../compat/productService';
 
 export default function CartPage() {
-  const { items, removeItem, updateQuantity, total, itemCount, appliedPromo, setAppliedPromo } = useCart();
-  const cartSummary = usePage().props.cart_summary || {};
+  const { items, removeItem, updateQuantity, total, itemCount, appliedPromo, setAppliedPromo, referralCode, applyReferral, removeReferral } = useCart();
+  const { showToast } = useToast();
+  const pageProps = usePage().props;
+  const cartSummary = pageProps.cart_summary || {};
+  const availableVouchers = Array.isArray(pageProps.availableVouchers) ? pageProps.availableVouchers : [];
+  const availablePromoCodes = Array.isArray(pageProps.availablePromoCodes) ? pageProps.availablePromoCodes : [];
   const [promoInput, setPromoInput] = useState(appliedPromo?.code || '');
   const [promoMessage, setPromoMessage] = useState(null);
+  const [referralInput, setReferralInput] = useState(referralCode || '');
 
   // Apply promo calculation
   const applyPromoCode = (codeToApply) => {
@@ -187,7 +193,7 @@ export default function CartPage() {
 
             {/* Quick Promo Chips */}
             <div className="mt-3 flex flex-wrap gap-2">
-              {['SAVE10', 'ACCOMM25', 'GRATIS50K', 'TECH100K'].map(chip => (
+              {availablePromoCodes.map(promo => promo.code).map(chip => (
                 <button
                   key={chip}
                   onClick={() => {
@@ -203,6 +209,44 @@ export default function CartPage() {
                   {chip}
                 </button>
               ))}
+            </div>
+
+            {availableVouchers.length > 0 && (
+              <div className="mt-4 pt-3 border-t border-border-subtle">
+                <p className="text-[12px] font-semibold text-text-primary mb-2">Voucher saya yang belum dipakai</p>
+                <div className="flex flex-col gap-2">
+                  {availableVouchers.map((voucher) => (
+                    <button
+                      key={voucher.id}
+                      onClick={() => {
+                        setPromoInput(voucher.code);
+                        applyPromoCode(voucher.code);
+                      }}
+                      className={`w-full text-left rounded-lg border px-3 py-2 transition-colors ${
+                        appliedPromo?.code === voucher.code
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border-subtle hover:border-primary hover:bg-surface'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[12px] font-bold text-primary">{voucher.code}</span>
+                        <span className="text-[11px] font-semibold text-green-600">-{formatPrice(voucher.discount)}</span>
+                      </div>
+                      <p className="text-[11px] text-text-secondary mt-0.5 truncate">{voucher.title}</p>
+                      <p className="text-[10px] text-text-secondary mt-0.5">Min. belanja {formatPrice(voucher.minOrder)}{voucher.expiry ? ` • Berlaku sampai ${voucher.expiry}` : ''}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-4 pt-3 border-t border-border-subtle">
+              <p className="text-[12px] font-semibold text-text-primary mb-2">Kode Referral (Opsional)</p>
+              <div className="flex gap-2">
+                <input type="text" placeholder="Masukkan kode referral..." value={referralInput} onChange={(e) => setReferralInput(e.target.value.toUpperCase())} className="flex-1 bg-surface border border-border-subtle rounded-lg px-3 py-2.5 text-[13px] uppercase focus:outline-none focus:border-primary" />
+                <button onClick={() => applyReferral(referralInput.trim(), { onError: (errors) => showToast({ title: 'Kode referral tidak dapat digunakan', message: errors.code || 'Periksa kembali kode referral.', type: 'error' }) })} className="bg-primary text-on-primary font-bold px-4 py-2.5 rounded-lg">Pakai</button>
+              </div>
+              {referralCode && <div className="mt-2 flex items-center justify-between text-[12px] text-green-600">Referral aktif: <strong>{referralCode}</strong><button onClick={() => { removeReferral(); setReferralInput(''); }} className="text-red-500">Hapus</button></div>}
             </div>
 
             {appliedPromo && (
@@ -230,7 +274,7 @@ export default function CartPage() {
 
               {discountAmount > 0 && (
                 <div className="flex justify-between text-green-600 font-bold">
-                  <span>Diskon Promo ({appliedPromo?.code})</span>
+                  <span>Diskon Promo ({appliedPromo?.code || 'Voucher'})</span>
                   <span>- {formatPrice(discountAmount)}</span>
                 </div>
               )}

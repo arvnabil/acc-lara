@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Inertia\Middleware;
+use Modules\Clients\Models\Address;
 use Modules\Catalog\Services\CatalogQuery;
 use Modules\Cart\Models\Cart;
 use Modules\Loyalty\Services\LoyaltyService;
@@ -16,7 +17,7 @@ class HandleInertiaRequests extends Middleware
 
     public function share(Request $request): array
     {
-        $user = $request->user()?->load('company');
+        $user = $request->user()?->load(['client', 'addresses']);
 
         return [
             ...parent::share($request),
@@ -26,12 +27,24 @@ class HandleInertiaRequests extends Middleware
                     'name' => $user->name,
                     'email' => $user->email,
                     'phone' => $user->phone,
-                    'company' => $user->company ? [
-                        'id' => $user->company->id,
-                        'name' => $user->company->name,
-                        'npwp' => $user->company->npwp,
+                    'client' => $user->client ? [
+                        'id' => $user->client->id,
+                        'name' => $user->client->name,
+                        'npwp' => $user->client->npwp,
                     ] : null,
                     'company_role' => $user->company_role,
+                    'referral_code' => $user->referral_code,
+                    'addresses' => $user->addresses->map(fn (Address $address): array => [
+                        'id' => $address->id,
+                        'label' => $address->label,
+                        'recipientName' => $address->recipient_name,
+                        'phone' => $address->phone,
+                        'province' => $address->province,
+                        'city' => $address->city,
+                        'address' => $address->address,
+                        'postalCode' => $address->postal_code,
+                        'isDefault' => $address->is_default,
+                    ])->values()->all(),
                 ] : null,
             ],
             'flash' => [
@@ -54,3 +67,7 @@ class HandleInertiaRequests extends Middleware
         ];
     }
 }
+
+
+
+

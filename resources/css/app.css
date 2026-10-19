@@ -83,6 +83,16 @@
     margin: 1rem 0;
     border-collapse: collapse;
     font-size: 0.8125rem;
+    cursor: default;
+  }
+
+  .product-description,
+  .product-description * {
+    cursor: default;
+  }
+
+  .product-description a {
+    cursor: pointer;
   }
 
   .product-description th,

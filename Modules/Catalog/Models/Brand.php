@@ -5,10 +5,11 @@ namespace Modules\Catalog\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Modules\SEO\Traits\HasSeoMeta;
 
 class Brand extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, HasSeoMeta;
 
     protected $fillable = [
         'name',

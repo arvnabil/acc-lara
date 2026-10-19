@@ -10,6 +10,11 @@ class EditProduct extends EditRecord
 {
     protected static string $resource = ProductResource::class;
 
+    protected function afterSave(): void
+    {
+        ProductResource::normalizeImagePaths($this->record);
+    }
+
     protected function getHeaderActions(): array
     {
         return [

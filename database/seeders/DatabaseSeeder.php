@@ -10,6 +10,7 @@ class DatabaseSeeder extends Seeder
     {
         // 1. Buat role administrator dan user admin dari .env.
         $this->call(AdminUserSeeder::class);
+        $this->call(LoyaltySettingsSeeder::class);
 
         // 2. Lima kode promo dasar dari spesifikasi checkout.
         $this->call(\Modules\Promo\Database\Seeders\PromoSeeder::class);

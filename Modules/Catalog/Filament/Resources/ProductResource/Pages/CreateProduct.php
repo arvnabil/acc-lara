@@ -9,4 +9,9 @@ use Modules\Catalog\Filament\Resources\ProductResource;
 class CreateProduct extends CreateRecord
 {
     protected static string $resource = ProductResource::class;
+
+    protected function afterCreate(): void
+    {
+        ProductResource::normalizeImagePaths($this->record);
+    }
 }

@@ -5,7 +5,6 @@ namespace Modules\Catalog\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -15,13 +14,29 @@ use Modules\Catalog\Services\CatalogQuery;
 use Modules\Orders\Enums\OrderStatus;
 use Modules\Orders\Models\OrderItem;
 use Modules\Review\Models\Review;
+use Modules\SEO\Services\SeoResolver;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class CatalogController extends Controller
 {
-    public function __construct(private readonly CatalogQuery $catalog) {}
+    public function __construct(
+        private readonly CatalogQuery $catalog,
+        private readonly SeoResolver $seoResolver,
+    ) {}
 
     public function index(Request $request): Response
     {
+        $request->validate([
+            'kategori' => ['nullable', 'string', 'max:500'],
+            'brand' => ['nullable', 'string', 'max:500'],
+            'q' => ['nullable', 'string', 'max:255'],
+            'sort' => ['nullable', 'in:default,featured,price_asc,price_desc,name_asc,sale'],
+            'stok' => ['nullable', 'boolean'],
+            'min' => ['nullable', 'integer', 'min:0'],
+            'max' => ['nullable', 'integer', 'min:0'],
+            'halaman' => ['nullable', 'integer', 'min:1'],
+        ]);
+
         $filters = [
             'category' => $request->string('kategori')->trim()->value() ?: null,
             'brand' => $request->string('brand')->trim()->value() ?: null,
@@ -43,15 +58,16 @@ class CatalogController extends Controller
                 'total_pages' => $products->lastPage(),
             ],
             'categories' => $this->catalog->categories(),
-            'brands' => collect($this->catalog->brands())->map(fn (array $brand): array => [...$brand, 'logo' => $brand['logo_url']])->all(),
+            'brands' => collect($this->catalog->brandsWithCounts($filters))->map(fn (array $brand): array => [...$brand, 'logo' => $brand['logo_url']])->all(),
             'filters' => $filters,
+            'seo' => $this->seoResolver->staticPage('Katalog Produk', 'Temukan produk IT dan audio visual untuk kebutuhan bisnis dan korporasi.', url('/katalog'), (bool) $filters['q']),
         ]);
     }
 
     public function home(): Response
     {
         $base = fn () => Product::query()
-            ->with(['brand:id,name,slug,logo_url', 'categories:id,name,slug,full_path,parent_id', 'images:id,product_id,url,sort_order', 'attributes:id,attributable_type,attributable_id,name,value'])
+            ->with(['brand:id,name,slug,logo_url', 'categories:id,name,slug,full_path,parent_id', 'images:id,product_id,url,sort_order', 'attributes:id,attributable_type,attributable_id,name,value', 'seo'])
             ->where('is_addon', false)
             ->where('is_price_outlier', false)
             ->orderBy('sort_order');
@@ -67,16 +83,18 @@ class CatalogController extends Controller
             'featuredProducts' => $base()->where('is_featured', true)->limit(8)->get()->map(fn (Product $product): array => $this->serializeProduct($product))->values()->all(),
             'saleProducts' => $base()->whereNotNull('sale_price')->limit(8)->get()->map(fn (Product $product): array => $this->serializeProduct($product))->values()->all(),
             'flashSaleProducts' => $base()->where('is_flash_sale', true)->limit(8)->get()->map(fn (Product $product): array => $this->serializeProduct($product))->values()->all(),
+            'seo' => $this->seoResolver->staticPage('Belanja Produk IT & Audio Visual', 'Belanja produk IT dan audio visual original dengan garansi resmi untuk kebutuhan bisnis dan korporasi.', url('/')),
         ]);
     }
 
-    public function show(string $slug): Response|HttpResponse
+    public function show(string $slug): Response|SymfonyResponse
     {
         $product = Product::query()
             ->with([
                 'brand:id,name,slug,logo_url',
                 'categories:id,name,slug,full_path,parent_id',
                 'images:id,product_id,url,sort_order',
+                'seo',
                 'attributes:id,attributable_type,attributable_id,name,value',
                 'variants' => fn ($query) => $query
                     ->where('is_price_outlier', false)
@@ -84,7 +102,13 @@ class CatalogController extends Controller
             ])
             ->where('is_addon', false)
             ->where('is_price_outlier', false)
-            ->where('slug', $slug)
+            ->where(function ($query) use ($slug): void {
+                $query->where('slug', $slug);
+
+                if (ctype_digit($slug)) {
+                    $query->orWhereKey((int) $slug);
+                }
+            })
             ->first();
 
         if (! $product) {
@@ -98,6 +122,7 @@ class CatalogController extends Controller
                 'brand:id,name,slug,logo_url',
                 'categories:id,name,slug,full_path,parent_id',
                 'images:id,product_id,url,sort_order',
+                'seo',
                 'attributes:id,attributable_type,attributable_id,name,value',
             ])
             ->where('products.id', '<>', $product->id)
@@ -126,6 +151,7 @@ class CatalogController extends Controller
             'relatedProducts' => $related->map(fn (Product $relatedProduct): array => $this->serializeProduct($relatedProduct))->values()->all(),
             'brands' => collect($this->catalog->brands())->map(fn (array $brand): array => [...$brand, 'logo' => $brand['logo_url']])->all(),
             'categories' => $this->catalog->categories(),
+            'seo' => $this->seoResolver->for($product),
         ]);
     }
 
@@ -152,6 +178,7 @@ class CatalogController extends Controller
             ->all();
         $data['category_ids'] = $product->categories->modelKeys();
         $data['attributes'] = $product->attributes->toArray();
+        $data['seo'] = $product->seo?->only(['title', 'description', 'og_image', 'canonical_url', 'noindex']);
         $data['points_estimate'] = intdiv(max(0, (int) ($product->sale_price ?: $product->regular_price)), 10000);
 
         if ($detail) {
@@ -200,13 +227,13 @@ class CatalogController extends Controller
 
     private function reviewEligibility(int $productId, ?User $user): array
     {
-        if (! $user?->company_id) {
+        if (! $user?->client_id) {
             return ['can_write' => false, 'items' => []];
         }
 
-        $items = OrderItem::query()->with('order:id,number,status,company_id')->where('product_id', $productId)
-            ->whereHas('order', fn ($query) => $query->where('company_id', $user->company_id)->where('status', OrderStatus::Completed))
-            ->whereDoesntHave('reviews', fn ($query) => $query->where('company_id', $user->company_id))
+        $items = OrderItem::query()->with('order:id,number,status,client_id')->where('product_id', $productId)
+            ->whereHas('order', fn ($query) => $query->where('client_id', $user->client_id)->where('status', OrderStatus::Completed))
+            ->whereDoesntHave('reviews', fn ($query) => $query->where('client_id', $user->client_id))
             ->latest('id')->get();
 
         return [
@@ -219,3 +246,5 @@ class CatalogController extends Controller
         ];
     }
 }
+
+

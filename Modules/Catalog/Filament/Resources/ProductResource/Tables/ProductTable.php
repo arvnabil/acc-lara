@@ -8,8 +8,10 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
+use Filament\Notifications\Notification;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Modules\Catalog\Filament\Resources\ProductResource\Pages;
 use Modules\Catalog\Models\Brand;
@@ -137,6 +139,33 @@ class ProductTable
     
                             $record->increment('stock', (int) $data['delta']);
                         }),
+
+                    \Filament\Actions\Action::make('check_shipping_data')
+                        ->label('Cek data ongkir')
+                        ->tooltip('Cek kelengkapan data ongkir')
+                        ->icon('heroicon-o-clipboard-document-check')
+                        ->iconButton()
+                        ->color('warning')
+                        ->action(function (Product $record): void {
+                            $issues = self::shippingDataIssues($record);
+
+                            if ($issues === []) {
+                                Notification::make()
+                                    ->title('Data ongkir lengkap')
+                                    ->body('Berat dan seluruh dimensi produk sudah siap dikirim ke Biteship.')
+                                    ->success()
+                                    ->send();
+
+                                return;
+                            }
+
+                            Notification::make()
+                                ->title('Data ongkir belum lengkap')
+                                ->body(implode("\n", $issues))
+                                ->warning()
+                                ->persistent()
+                                ->send();
+                        }),
                 ])
                 ->bulkActions([
                     \Filament\Actions\BulkActionGroup::make([
@@ -147,6 +176,52 @@ class ProductTable
                 ])
                 ->defaultSort('sort_order');
         }
+
+    /**
+     * @return array<int, string>
+     */
+    private static function shippingDataIssues(Product $product): array
+    {
+        $product->loadMissing('variants');
+
+        $fields = [
+            'weight_grams' => 'berat',
+            'length_cm' => 'panjang',
+            'width_cm' => 'lebar',
+            'height_cm' => 'tinggi',
+        ];
+
+        /** @var Collection<int, Product|object> $records */
+        $records = $product->type === 'variable'
+            ? $product->variants
+            : collect([$product]);
+
+        $issues = [];
+
+        foreach ($records as $record) {
+            $missing = [];
+
+            foreach ($fields as $field => $label) {
+                if (! is_numeric($record->{$field}) || (int) $record->{$field} < 1) {
+                    $missing[] = $label;
+                }
+            }
+
+            if ($missing !== []) {
+                $recordLabel = $record instanceof Product
+                    ? 'Produk utama'
+                    : 'Varian '.($record->name ?: $record->sku ?: '#'.$record->id);
+
+                $issues[] = $recordLabel.': '.implode(', ', $missing).'.';
+            }
+        }
+
+        if ($records->isEmpty()) {
+            $issues[] = 'Belum ada varian yang memiliki data ongkir.';
+        }
+
+        return $issues;
+    }
 }
 
 

@@ -7,6 +7,7 @@ import { Link } from '../compat/router';
 import ProductCard from '../components/ProductCard';
 import { ProductGridSkeleton } from '../components/Skeleton';
 import { formatPrice } from '../compat/productService';
+import SeoHead from '../components/SeoHead';
 
 // ─── Hero Carousel ───────────────────────────────────────────────────────────
 const HERO_SLIDES = [
@@ -261,7 +262,7 @@ const BENEFITS = [
   { icon: 'support_agent', title: 'SLA Dukungan 4 Jam', desc: 'Engineer bersertifikat siap bantu' },
 ];
 
-export default function HomePage({ featuredProducts: featured = [], saleProducts: sale = [], flashSaleProducts: flashSale = [], categories: propCats = [], brands = [], banners = [] }) {
+export default function HomePage({ featuredProducts: featured = [], saleProducts: sale = [], flashSaleProducts: flashSale = [], categories: propCats = [], brands = [], banners = [], seo }) {
   const cats = propCats.filter(c => !c.parent_id && !c.is_addon && !c.is_brand_group).slice(0, 8);
   const loading = false;
 
@@ -272,7 +273,9 @@ export default function HomePage({ featuredProducts: featured = [], saleProducts
   const countdown = useCountdown(flashSaleEnd.current);
 
   return (
-    <div className="flex flex-col w-full">
+    <>
+      <SeoHead seo={seo} title="Belanja Produk IT & Audio Visual" description="Belanja produk IT dan audio visual original dengan garansi resmi untuk kebutuhan bisnis dan korporasi." />
+      <div className="flex flex-col w-full">
       {/* Hero */}
       <section className="max-w-[1440px] mx-auto px-gutter lg:px-margin py-space-xl w-full">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-space-lg items-stretch">
@@ -532,6 +535,7 @@ export default function HomePage({ featuredProducts: featured = [], saleProducts
 
       {/* Bottom spacer for mobile bottom nav */}
       <div className="h-4" />
-    </div>
+      </div>
+    </>
   );
 }

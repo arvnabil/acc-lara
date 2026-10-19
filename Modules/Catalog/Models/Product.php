@@ -13,10 +13,11 @@ use Modules\Cart\Models\CartItem;
 use Modules\Orders\Models\OrderItem;
 use Modules\Review\Models\Review;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Modules\SEO\Traits\HasSeoMeta;
 
 class Product extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasSeoMeta;
     protected static function newFactory(): ProductFactory { return ProductFactory::new(); }
 
     protected $fillable = [
@@ -33,6 +34,10 @@ class Product extends Model
         'is_flash_sale',
         'is_addon',
         'stock',
+        'weight_grams',
+        'length_cm',
+        'width_cm',
+        'height_cm',
         'brand_id',
         'sort_order',
         'description',
@@ -46,6 +51,10 @@ class Product extends Model
         'is_featured' => 'boolean',
         'is_flash_sale' => 'boolean',
         'is_addon' => 'boolean',
+        'weight_grams' => 'integer',
+        'length_cm' => 'integer',
+        'width_cm' => 'integer',
+        'height_cm' => 'integer',
     ];
 
     public function setDescriptionAttribute(?string $value): void

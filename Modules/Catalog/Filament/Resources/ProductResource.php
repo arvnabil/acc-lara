@@ -12,6 +12,7 @@ use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Modules\Catalog\Filament\Resources\ProductResource\Pages;
 use Modules\Catalog\Models\Brand;
@@ -63,5 +64,46 @@ class ProductResource extends Resource
                 'brand:id,name,slug',
                 'images:id,product_id,url,sort_order',
             ]);
+    }
+
+    public static function imageDirectory(?ProductImage $record = null): string
+    {
+        $product = $record?->product_id
+            ? Product::query()->with('brand')->find($record->product_id)
+            : null;
+
+        return self::canonicalImageDirectory($product);
+    }
+
+    public static function canonicalImageDirectory(?Product $product): string
+    {
+        $brand = Str::slug($product?->brand?->slug ?? $product?->brand?->name ?? 'tanpa-brand');
+        $slug = Str::slug($product?->slug ?? $product?->name ?? 'produk');
+
+        return "catalog/{$brand}/{$slug}";
+    }
+
+    public static function normalizeImagePaths(Product $product): void
+    {
+        $product->loadMissing('brand');
+        $directory = self::canonicalImageDirectory($product);
+        $disk = Storage::disk('public');
+
+        foreach ($product->images()->get() as $image) {
+            $path = ltrim((string) $image->url, '/');
+            if (blank($path) || Str::startsWith($path, ['http://', 'https://'])) {
+                continue;
+            }
+
+            $target = $directory.'/'.basename($path);
+            if ($path !== $target && $disk->exists($path)) {
+                if (! $disk->exists($target)) {
+                    $disk->makeDirectory($directory);
+                    $disk->move($path, $target);
+                }
+
+                $image->update(['url' => $target]);
+            }
+        }
     }
 }

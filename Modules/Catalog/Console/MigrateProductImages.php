@@ -21,15 +21,20 @@ class MigrateProductImages extends Command
         $migrated = 0;
         $skipped = 0;
         $failed = 0;
-
-        ProductImage::query()
-            ->with('product.brand')
+        $query = ProductImage::query()
             ->where(function ($query): void {
                 $query->where('url', 'like', 'http://%')
                     ->orWhere('url', 'like', 'https://%');
-            })
+            });
+        $total = $query->count();
+        $progress = $this->output->createProgressBar($total);
+        $progress->setFormat(' %current%/%max% [%bar%] %percent:3s%%');
+        $progress->start();
+
+        $query
+            ->with('product.brand')
             ->orderBy('id')
-            ->chunkById(50, function ($images) use (&$migrated, &$skipped, &$failed): void {
+            ->chunkById(50, function ($images) use (&$migrated, &$skipped, &$failed, $progress): void {
                 foreach ($images as $image) {
                     $url = $image->url;
                     $directory = 'catalog/'.Str::slug(
@@ -41,8 +46,8 @@ class MigrateProductImages extends Command
                     $path = trim($directory.'/'.$filename, '/');
 
                     if ($this->option('dry-run')) {
-                        $this->line("[DRY RUN] {$url} -> {$path}");
                         $skipped++;
+                        $progress->advance();
                         continue;
                     }
 
@@ -50,14 +55,15 @@ class MigrateProductImages extends Command
                         if (Storage::disk('public')->exists($path)) {
                             $image->update(['url' => $path]);
                             $skipped++;
+                            $progress->advance();
                             continue;
                         }
 
                         $response = Http::timeout(30)->retry(2, 500)->get($url);
 
                         if (! $response->successful() || ! $this->isImage($response)) {
-                            $this->warn("Gagal mengambil image #{$image->id}: {$url}");
                             $failed++;
+                            $progress->advance();
                             continue;
                         }
 
@@ -65,12 +71,15 @@ class MigrateProductImages extends Command
                         $image->update(['url' => $path]);
                         $migrated++;
                     } catch (Throwable $exception) {
-                        $this->warn("Gagal image #{$image->id}: {$exception->getMessage()}");
                         $failed++;
                     }
+
+                    $progress->advance();
                 }
             });
 
+        $progress->finish();
+        $this->newLine(2);
         $this->info("Migrated: {$migrated}; skipped: {$skipped}; failed: {$failed}");
 
         return $failed > 0 ? self::FAILURE : self::SUCCESS;

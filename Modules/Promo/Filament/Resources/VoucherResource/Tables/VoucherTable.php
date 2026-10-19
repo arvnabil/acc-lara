@@ -14,13 +14,13 @@ class VoucherTable
     public static function table(Table $table): Table
         {
             return $table
-                ->modifyQueryUsing(fn ($query) => $query->with(['company', 'category']))
+                ->modifyQueryUsing(fn ($query) => $query->with(['client', 'category']))
                 ->columns([
                     Tables\Columns\TextColumn::make('code')->searchable()->copyable(),
                     Tables\Columns\TextColumn::make('title')->searchable(),
                     Tables\Columns\TextColumn::make('type')->badge(),
                     Tables\Columns\TextColumn::make('discount_value')->numeric(),
-                    Tables\Columns\TextColumn::make('company.name')->label('Company')->searchable(),
+                    Tables\Columns\TextColumn::make('client.name')->label('Client')->searchable(),
                     Tables\Columns\TextColumn::make('source')->badge(),
                     Tables\Columns\TextColumn::make('category.name')->label('Category'),
                     Tables\Columns\TextColumn::make('expires_at')->dateTime()->sortable(),
@@ -33,5 +33,7 @@ class VoucherTable
                 ->defaultSort('created_at', 'desc');
         }
 }
+
+
 
 

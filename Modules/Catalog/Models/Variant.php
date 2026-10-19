@@ -27,11 +27,19 @@ class Variant extends Model
         'is_dummy_price',
         'is_price_outlier',
         'stock',
+        'weight_grams',
+        'length_cm',
+        'width_cm',
+        'height_cm',
     ];
 
     protected $casts = [
         'is_dummy_price' => 'boolean',
         'is_price_outlier' => 'boolean',
+        'weight_grams' => 'integer',
+        'length_cm' => 'integer',
+        'width_cm' => 'integer',
+        'height_cm' => 'integer',
     ];
 
     public function product(): BelongsTo

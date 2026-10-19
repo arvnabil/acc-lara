@@ -39,7 +39,7 @@ class OrderResource extends Resource
         return $schema->components([
             TextEntry::make('number')->label('Order Number'),
             TextEntry::make('status')->badge(),
-            TextEntry::make('company.name')->label('Company'),
+            TextEntry::make('client.name')->label('Client'),
             TextEntry::make('grand_total')->numeric(),
             TextEntry::make('payment_method')->label('Payment'),
             TextEntry::make('shipping_method')->label('Shipping'),
@@ -83,3 +83,5 @@ class OrderResource extends Resource
         return false;
     }
 }
+
+

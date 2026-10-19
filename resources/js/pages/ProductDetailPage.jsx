@@ -11,6 +11,7 @@ import { useAuth } from "../compat/context";
 import { useWishlist } from "../compat/context";
 import { useToast } from "../compat/context";
 import ProductCard from "../components/ProductCard";
+import SeoHead from "../components/SeoHead";
 
 // ─── Review Section ────────────────────────────────────────────────────────
 function ReviewSection({ product, user }) {
@@ -194,27 +195,7 @@ function ReviewSection({ product, user }) {
                     <input type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" />
                   </label>
                 )}
-                {!video && (
-                  <label className="h-14 px-3 rounded-lg border-2 border-dashed border-gray-300 hover:border-primary flex items-center gap-1.5 text-gray-500 hover:text-primary cursor-pointer transition-colors bg-white">
-                    <span className="material-symbols-outlined text-[18px]">videocam</span>
-                    <span className="text-xs font-semibold">Tambah Video</span>
-                    <input type="file" accept="video/*" onChange={handleVideoUpload} className="hidden" />
-                  </label>
-                )}
               </div>
-
-              {video && (
-                <div className="relative rounded-lg overflow-hidden border border-gray-300 bg-black max-w-xs max-h-32">
-                  <video src={video} controls className="w-full max-h-32 object-contain" />
-                  <button
-                    type="button"
-                    onClick={() => setVideo(null)}
-                    className="absolute top-1 right-1 bg-red-600 text-white text-[10px] px-2 py-0.5 rounded font-bold"
-                  >
-                    Hapus Video
-                  </button>
-                </div>
-              )}
             </div>
 
             {/* Checkbox Anonymous & Submit */}
@@ -618,7 +599,7 @@ function useCountdown(targetDate) {
 
 // ─── Main Page ─────────────────────────────────────────────────────────────
 export default function ProductDetailPage() {
-  const { product: propProduct, variants: propVariants = [], relatedProducts: propRelated = [], brands: propBrands = [], categories: propCategories = [], whatsapp } = usePage().props;
+  const { product: propProduct, variants: propVariants = [], relatedProducts: propRelated = [], brands: propBrands = [], categories: propCategories = [], whatsapp, seo } = usePage().props;
   const { slug } = useParams();
   const navigate = useNavigate();
   const { addItem } = useCart();
@@ -711,6 +692,26 @@ export default function ProductDetailPage() {
   );
   const primaryCat = productCats.find((c) => !c.parent_id) || productCats[0];
   const subCat = productCats.find((c) => c.parent_id);
+
+  const seoTitle = product?.seo?.title || product?.name;
+  const seoDescription = product?.seo?.description || product?.short_description || product?.description?.replace(/<[^>]+>/g, '').slice(0, 160);
+  const seoImage = product?.seo?.og_image || product?.images?.[0];
+  const productSchema = product ? {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.name,
+    description: seoDescription,
+    image: product.images || [],
+    sku: product.sku || undefined,
+    brand: brand?.name ? { '@type': 'Brand', name: brand.name } : undefined,
+    offers: {
+      '@type': 'Offer',
+      url: window.location.href,
+      priceCurrency: 'IDR',
+      price: displayPrice || undefined,
+      availability: stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+    },
+  } : null;
 
   // Detect product type
   const RENTAL_CAT_IDS = [13, 14]; // 'Sewa', 'Sewa Produk'
@@ -821,7 +822,7 @@ export default function ProductDetailPage() {
           pricePerDay: displayPrice,
           rentalTotal,
         }
-      }, 1, selectedVariant);
+      }, 1, selectedVariant, { onSuccess: () => navigate('/checkout') });
     } else if (isLicense) {
       addItem({
         ...product,
@@ -836,11 +837,10 @@ export default function ProductDetailPage() {
           pricePerSeat: licensePricePerSeat,
           licenseTotal,
         }
-      }, 1, selectedVariant);
+      }, 1, selectedVariant, { onSuccess: () => navigate('/checkout') });
     } else {
-      addItem(product, quantity, selectedVariant);
+      addItem(product, quantity, selectedVariant, { onSuccess: () => navigate('/checkout') });
     }
-    navigate('/checkout');
   }
 
   if (loading) {
@@ -883,6 +883,8 @@ export default function ProductDetailPage() {
   }
 
   return (
+    <>
+      <SeoHead seo={seo} title={seoTitle} description={seoDescription} image={seoImage} type="product" schema={seo?.schema || productSchema} />
     <div className="flex flex-col w-full pb-[80px] lg:pb-0 bg-gray-50 min-h-screen">
       <div className="max-w-[1440px] mx-auto px-gutter lg:px-margin py-4 w-full">
         {/* ── Breadcrumb ──────────────────────────────────────────────── */}
@@ -1665,7 +1667,7 @@ export default function ProductDetailPage() {
                 <button
                   onClick={handleAddToCart}
                   disabled={isOutOfStock}
-                  className={`${isDummyPrice ? "w-full" : "flex-1"} min-w-0 h-12 rounded-xl font-bold text-[13px] sm:text-[14px] flex items-center justify-center gap-1.5 transition-all border-2
+                  className={`${isDummyPrice ? "w-full" : isRental || isLicense ? "flex-1" : "w-12 sm:flex-1"} min-w-0 h-12 rounded-xl font-bold text-[13px] sm:text-[14px] flex items-center justify-center gap-1.5 transition-all border-2
                     ${
                       added
                         ? "bg-emerald-50 border-emerald-500 text-emerald-700"
@@ -1677,7 +1679,7 @@ export default function ProductDetailPage() {
                   <span className="material-symbols-outlined text-[19px] flex-shrink-0">
                     {added ? "check" : isRental ? "event_available" : isLicense ? "key" : "add_shopping_cart"}
                   </span>
-                  <span className="truncate">
+                  <span className={`${!isDummyPrice && !isRental && !isLicense ? "hidden sm:inline" : "truncate"}`}>
                     {isDummyPrice ? "Hubungi via WhatsApp" : added ? "Ditambahkan!" : isRental ? "+ Booking Sekarang" : isLicense ? "+ Tambah Lisensi" : "+ Masukkan Keranjang"}
                   </span>
                 </button>
@@ -2014,11 +2016,11 @@ export default function ProductDetailPage() {
         <button
           onClick={handleAddToCart}
           disabled={isOutOfStock}
-          className={`${isDummyPrice ? "w-full" : "flex-1"} min-w-0 h-10 rounded-xl font-bold text-[12px] flex items-center justify-center gap-1 border-2 transition-all active:scale-98
+          className={`${isDummyPrice ? "w-full" : isRental || isLicense ? "flex-1" : "w-10 sm:flex-1"} min-w-0 h-10 rounded-xl font-bold text-[12px] flex items-center justify-center gap-1 border-2 transition-all active:scale-98
             ${added ? "bg-emerald-50 border-emerald-500 text-emerald-700" : isOutOfStock ? "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed" : "border-primary text-primary hover:bg-primary/5"}`}
         >
           <span className="material-symbols-outlined text-[16px] flex-shrink-0">{added ? "check" : isRental ? "event_available" : isLicense ? "key" : "add_shopping_cart"}</span>
-          <span className="truncate">{added ? "Ditambahkan!" : isRental ? "+ Booking" : isLicense ? "+ Lisensi" : "+ Keranjang"}</span>
+          <span className={`${!isDummyPrice && !isRental && !isLicense ? "hidden sm:inline" : "truncate"}`}>{added ? "Ditambahkan!" : isRental ? "+ Booking" : isLicense ? "+ Lisensi" : "+ Keranjang"}</span>
         </button>
 
         {/* Buy Now button */}
@@ -2032,5 +2034,6 @@ export default function ProductDetailPage() {
         </button>}
       </div>
     </div>
+    </>
   );
 }

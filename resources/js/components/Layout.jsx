@@ -167,7 +167,7 @@ function MegaMenu({ categories }) {
 }
 
 // ─── Header ──────────────────────────────────────────────────────────────────
-function Header({ categories }) {
+function Header({ categories, navigationMenus }) {
   const { itemCount } = useCart();
   const { wishlist } = useWishlist();
   const { user } = useAuth();
@@ -465,10 +465,9 @@ function Header({ categories }) {
           </div>
 
           {/* Nav links */}
-          <NavLink to="/">Beranda</NavLink>
-          <NavLink to="/katalog">Katalog Produk</NavLink>
-          <NavLink to="/kategori">Semua Kategori</NavLink>
-          <NavLink to="/katalog?sort=sale">Promo & Diskon</NavLink>
+          {navigationMenus.map((menu) => (
+            <NavLink key={menu.id} to={menu.href}>{menu.label}</NavLink>
+          ))}
         </div>
       </div>
     </header>
@@ -477,9 +476,9 @@ function Header({ categories }) {
 
 function NavLink({ to, children }) {
   const location = useLocation();
-  const isActive =
-    location.pathname === to ||
-    (to !== "/" && location.pathname.startsWith(to.split("?")[0]));
+  const [targetPath, targetQuery = ""] = to.split("?");
+  const isActive = location.pathname === targetPath &&
+    (!targetQuery || location.search === `?${targetQuery}`);
   return (
     <Link
       to={to}
@@ -715,7 +714,7 @@ function BottomNav() {
 
 // ─── Layout ──────────────────────────────────────────────────────────────────
 export default function Layout() {
-  const { categoryMenu: categories = [], whatsapp = {} } = usePage().props;
+  const { categoryMenu: categories = [], navigationMenus = [], whatsapp = {} } = usePage().props;
   const whatsappPhone = String(whatsapp.phone || '6287780116800').replace(/\D/g, '');
   const whatsappHref = `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(whatsapp.message || 'Halo ACTiV, saya ingin konsultasi mengenai produk.')}`;
 
@@ -730,7 +729,7 @@ export default function Layout() {
 
   return (
     <div className="min-h-[100dvh] flex flex-col bg-page-background">
-      <Header categories={categories} />
+      <Header categories={categories} navigationMenus={navigationMenus} />
       <main className="flex-1 w-full pt-[64px] lg:pt-[164px] pb-[60px] md:pb-0 relative overflow-x-hidden">
         <div key={location.pathname} className="animate-fade">
           <Outlet />

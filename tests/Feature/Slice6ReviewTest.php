@@ -4,7 +4,7 @@ use App\Models\User;
 use App\Support\Events\ReviewStored;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Modules\Accounts\Models\Company;
+use Modules\Clients\Models\Client;
 use Modules\Catalog\Models\Product;
 use Modules\Loyalty\Models\LoyaltyAccount;
 use Modules\Loyalty\Services\LoyaltyService;
@@ -17,19 +17,19 @@ use Tests\TestCase;
 
 uses(TestCase::class, RefreshDatabase::class);
 
-function reviewCustomer(?Company $company = null, array $attributes = []): User
+function reviewCustomer(?Client $company = null, array $attributes = []): User
 {
-    $company ??= Company::factory()->create();
+    $company ??= Client::factory()->create();
 
-    return User::factory()->create(['company_id' => $company->id, 'company_role' => 'admin', ...$attributes]);
+    return User::factory()->create(['client_id' => $company->id, 'company_role' => 'admin', ...$attributes]);
 }
 
 function completedReviewFixture(?User $user = null, array $orderAttributes = []): array
 {
     $user ??= reviewCustomer();
-    app(LoyaltyService::class)->createAccount($user->company_id);
+    app(LoyaltyService::class)->createAccount($user->client_id);
     $product = Product::factory()->create(['slug' => fake()->unique()->slug()]);
-    $order = Order::factory()->create(['user_id' => $user->id, 'company_id' => $user->company_id, 'status' => OrderStatus::Completed, ...$orderAttributes]);
+    $order = Order::factory()->create(['user_id' => $user->id, 'client_id' => $user->client_id, 'status' => OrderStatus::Completed, ...$orderAttributes]);
     $item = OrderItem::factory()->create(['order_id' => $order->id, 'product_id' => $product->id, 'product_name' => $product->name]);
 
     return compact('user', 'product', 'order', 'item');
@@ -57,24 +57,24 @@ test('ulasan dari item company lain ditolak', function (): void {
 
 test('sub akun boleh mengulas pertama kali tetapi review kedua company ditolak', function (): void {
     $fixture = completedReviewFixture();
-    $member = reviewCustomer($fixture['user']->company, ['company_role' => 'member']);
+    $member = reviewCustomer($fixture['user']->client, ['company_role' => 'member']);
 
     $this->actingAs($fixture['user'])->post('/reviews', reviewPayload($fixture['item']))->assertRedirect();
-    $secondOrder = Order::factory()->create(['user_id' => $member->id, 'company_id' => $member->company_id, 'status' => OrderStatus::Completed]);
+    $secondOrder = Order::factory()->create(['user_id' => $member->id, 'client_id' => $member->client_id, 'status' => OrderStatus::Completed]);
     $secondItem = OrderItem::factory()->create(['order_id' => $secondOrder->id, 'product_id' => $fixture['product']->id, 'product_name' => $fixture['product']->name]);
 
     $this->actingAs($member)->post('/reviews', reviewPayload($secondItem))->assertSessionHasErrors('order_item_id');
-    expect(Review::where('company_id', $fixture['user']->company_id)->count())->toBe(1);
+    expect(Review::where('client_id', $fixture['user']->client_id)->count())->toBe(1);
 });
 
 test('review memberi lima puluh poin sekali dan tier points tidak berubah', function (): void {
     $fixture = completedReviewFixture();
-    $account = LoyaltyAccount::where('company_id', $fixture['user']->company_id)->firstOrFail();
+    $account = LoyaltyAccount::where('client_id', $fixture['user']->client_id)->firstOrFail();
     $account->update(['tier_points' => 25, 'points_balance' => 0]);
 
     $this->actingAs($fixture['user'])->post('/reviews', reviewPayload($fixture['item']))->assertRedirect();
     $review = Review::firstOrFail();
-    event(new ReviewStored($review->id, $review->company_id, $review->user_id, $review->product_id, $review->order_id));
+    event(new ReviewStored($review->id, $review->client_id, $review->user_id, $review->product_id, $review->order_id));
 
     expect($account->fresh()->points_balance)->toBe(50)
         ->and($account->fresh()->tier_points)->toBe(25)
@@ -83,7 +83,7 @@ test('review memberi lima puluh poin sekali dan tier points tidak berubah', func
 
 test('retur menarik poin ulasan', function (): void {
     $fixture = completedReviewFixture();
-    $account = LoyaltyAccount::where('company_id', $fixture['user']->company_id)->firstOrFail();
+    $account = LoyaltyAccount::where('client_id', $fixture['user']->client_id)->firstOrFail();
     $account->update(['points_balance' => 0]);
     $this->actingAs($fixture['user'])->post('/reviews', reviewPayload($fixture['item']))->assertRedirect();
 
@@ -124,10 +124,14 @@ test('review yang disembunyikan tidak tampil publik tetapi tetap ada di admin', 
 test('rata rata dan jumlah review publik benar', function (): void {
     $first = completedReviewFixture();
     $secondUser = reviewCustomer();
-    $secondOrder = Order::factory()->create(['user_id' => $secondUser->id, 'company_id' => $secondUser->company_id, 'status' => OrderStatus::Completed]);
+    $secondOrder = Order::factory()->create(['user_id' => $secondUser->id, 'client_id' => $secondUser->client_id, 'status' => OrderStatus::Completed]);
     $secondItem = OrderItem::factory()->create(['order_id' => $secondOrder->id, 'product_id' => $first['product']->id, 'product_name' => $first['product']->name]);
-    Review::create(['order_id' => $first['order']->id, 'order_item_id' => $first['item']->id, 'product_id' => $first['product']->id, 'user_id' => $first['user']->id, 'company_id' => $first['user']->company_id, 'rating' => 4, 'body' => 'Bagus']);
-    Review::create(['order_id' => $secondOrder->id, 'order_item_id' => $secondItem->id, 'product_id' => $first['product']->id, 'user_id' => $secondUser->id, 'company_id' => $secondUser->company_id, 'rating' => 2, 'body' => 'Cukup']);
+    Review::create(['order_id' => $first['order']->id, 'order_item_id' => $first['item']->id, 'product_id' => $first['product']->id, 'user_id' => $first['user']->id, 'client_id' => $first['user']->client_id, 'rating' => 4, 'body' => 'Bagus']);
+    Review::create(['order_id' => $secondOrder->id, 'order_item_id' => $secondItem->id, 'product_id' => $first['product']->id, 'user_id' => $secondUser->id, 'client_id' => $secondUser->client_id, 'rating' => 2, 'body' => 'Cukup']);
 
     $this->get('/produk/'.$first['product']->slug)->assertInertia(fn ($page) => $page->where('product.review_summary.count', 2)->where('product.review_summary.average', 3));
 });
+
+
+
+

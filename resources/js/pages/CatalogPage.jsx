@@ -7,6 +7,7 @@ import { Link, useSearchParams, router } from '../compat/router';
 import { usePage } from '@inertiajs/react';
 import ProductCard from '../components/ProductCard';
 import { ProductGridSkeleton } from '../components/Skeleton';
+import SeoHead from '../components/SeoHead';
 
 const SORT_OPTIONS = [
   { value: 'default', label: 'Terbaru' },
@@ -252,7 +253,7 @@ function Pagination({ page, total_pages, onChange }) {
 
 // ─── Main Page ─────────────────────────────────────────────────────────────
 export default function CatalogPage() {
-  const { products: result, categories, brands } = usePage().props;
+  const { products: result, categories, brands, seo } = usePage().props;
   const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
@@ -306,7 +307,9 @@ export default function CatalogPage() {
     : 'Semua Produk';
 
   return (
-    <div className="max-w-[1440px] mx-auto px-gutter lg:px-margin py-space-xl w-full">
+    <>
+      <SeoHead seo={seo} title={pageTitle} description={`Temukan ${pageTitle.toLowerCase()} di Accommerce.id.`} noindex={Boolean(params.q)} />
+      <div className="max-w-[1440px] mx-auto px-gutter lg:px-margin py-space-xl w-full">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-1 mb-4 text-[12px] text-text-secondary" aria-label="Breadcrumb">
         <Link to="/" className="hover:text-primary">Beranda</Link>
@@ -408,6 +411,7 @@ export default function CatalogPage() {
         params={searchParams}
         onChange={(next) => { handleParamChange(next); setShowFilter(false); }}
       />
-    </div>
+      </div>
+    </>
   );
 }

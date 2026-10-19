@@ -2,15 +2,19 @@
 
 namespace Modules\Loyalty\Listeners;
 
-use Modules\Accounts\Events\CompanyRegistered;
+use Modules\Clients\Events\ClientRegistered;
 use Modules\Loyalty\Services\LoyaltyService;
 
 class CreateLoyaltyAccount
 {
     public function __construct(private readonly LoyaltyService $loyalty) {}
 
-    public function handle(CompanyRegistered $event): void
+    public function handle(ClientRegistered $event): void
     {
-        $this->loyalty->createAccount($event->company->id);
+        $this->loyalty->createAccount($event->client->id);
     }
 }
+
+
+
+

@@ -1,0 +1,15 @@
+{
+  "name": "SEO",
+  "description": "SEO metadata dan structured data untuk konten publik.",
+  "enabled": true,
+  "priority": 8,
+  "requires": [],
+  "permissions": [
+    "view_any_seo_meta",
+    "view_seo_meta",
+    "update_seo_meta",
+    "view_seo_audit",
+    "view_seo_whitelist",
+    "update_seo_whitelist"
+  ]
+}

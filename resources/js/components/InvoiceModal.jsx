@@ -27,6 +27,8 @@ export default function InvoiceModal({ isOpen, onClose, order, user }) {
   const shippingCost = order.shippingCost || 0;
   const insuranceCost = order.insuranceCost || 0;
   const grandTotal = order.total || subtotal + shippingCost + insuranceCost;
+  const shippingLabel = order.shippingLabel || 'Kurir belum ditentukan';
+  const shippingEstimate = order.shippingEstimate || 'Menunggu estimasi';
 
   function handlePrint() {
     window.print();
@@ -175,7 +177,7 @@ export default function InvoiceModal({ isOpen, onClose, order, user }) {
               <div className="flex justify-between py-1 border-b border-gray-100">
                 <span className="font-bold text-gray-800">Pengiriman</span>
                 <span className="text-gray-800">
-                  Rp {shippingCost.toLocaleString('id-ID')} via JNE REG (1-2 hari)
+                  Rp {shippingCost.toLocaleString('id-ID')} via {shippingLabel} ({shippingEstimate})
                 </span>
               </div>
               <div className="flex justify-between py-1 border-b border-gray-100">

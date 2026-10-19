@@ -18,7 +18,7 @@ class LoyaltyAccountTable
     public static function table(Table $table): Table
         {
             return $table->columns([
-                Tables\Columns\TextColumn::make('company.name')->label('Company')->searchable(),
+                Tables\Columns\TextColumn::make('client.name')->label('Client')->searchable(),
                 Tables\Columns\TextColumn::make('current_tier')->badge(),
                 Tables\Columns\TextColumn::make('tier_points')->numeric(),
                 Tables\Columns\TextColumn::make('points_balance')->numeric(),
@@ -31,5 +31,7 @@ class LoyaltyAccountTable
             ]);
         }
 }
+
+
 
 

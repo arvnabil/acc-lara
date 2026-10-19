@@ -18,6 +18,7 @@ class CatalogQuery
                 'categories:id,name,slug,full_path,parent_id',
                 'images:id,product_id,url,sort_order',
                 'attributes:id,attributable_type,attributable_id,name,value',
+                'seo',
                 'variants' => fn ($variantQuery) => $variantQuery
                     ->where('is_price_outlier', false)
                     ->with('images:id,variant_id,url,sort_order'),
@@ -55,7 +56,12 @@ class CatalogQuery
             $query->where('regular_price', '<=', (int) $filters['max']);
         }
 
+        if (($filters['sort'] ?? null) === 'sale') {
+            $query->whereNotNull('sale_price');
+        }
+
         $query = match ($filters['sort'] ?? null) {
+            'sale' => $query->orderByDesc('sale_price')->orderBy('sort_order'),
             'price_asc' => $query->orderBy('regular_price')->orderBy('sort_order'),
             'price_desc' => $query->orderByDesc('regular_price')->orderBy('sort_order'),
             'name_asc' => $query->orderBy('name')->orderBy('sort_order'),
@@ -78,6 +84,54 @@ class CatalogQuery
     public function brands(): array
     {
         return Brand::query()->orderBy('name')->get(['id', 'name', 'slug', 'logo_url'])->toArray();
+    }
+
+    public function brandsWithCounts(array $filters): array
+    {
+        $query = Product::query()->where('is_addon', false)->where('is_price_outlier', false)->whereNull('deleted_at');
+        $this->applyFacetFilters($query, $filters, false);
+
+        $counts = $query->whereNotNull('brand_id')
+            ->selectRaw('brand_id, COUNT(*) as product_count')
+            ->groupBy('brand_id')
+            ->pluck('product_count', 'brand_id');
+
+        return Brand::query()->orderBy('name')->get(['id', 'name', 'slug', 'logo_url'])
+            ->map(fn (Brand $brand): array => [...$brand->toArray(), 'product_count' => (int) ($counts[$brand->id] ?? 0)])
+            ->values()
+            ->all();
+    }
+
+    private function applyFacetFilters(Builder $query, array $filters, bool $includeBrand = true): void
+    {
+        if (($filters['category'] ?? null) !== null) {
+            $query->whereHas('categories', fn (Builder $categoryQuery) => $categoryQuery->whereIn('categories.id', $this->descendantIds((string) $filters['category'])));
+        }
+
+        if ($includeBrand && ($filters['brand'] ?? null) !== null) {
+            $query->whereHas('brand', fn (Builder $brandQuery) => $brandQuery->where('slug', $filters['brand']));
+        }
+
+        if (($filters['q'] ?? null) !== null) {
+            $search = trim((string) $filters['q']);
+            $query->where(fn (Builder $searchQuery) => $searchQuery->where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%"));
+        }
+
+        if (($filters['stock'] ?? false) === true) {
+            $query->where('stock', '>', 0);
+        }
+
+        if (($filters['min'] ?? null) !== null) {
+            $query->where('regular_price', '>=', (int) $filters['min']);
+        }
+
+        if (($filters['max'] ?? null) !== null) {
+            $query->where('regular_price', '<=', (int) $filters['max']);
+        }
+
+        if (($filters['sort'] ?? null) === 'sale') {
+            $query->whereNotNull('sale_price');
+        }
     }
 
     public function descendantIds(string $category): array

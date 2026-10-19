@@ -182,31 +182,6 @@ export default function ReviewModal({ isOpen, onClose, product, order, user, onS
             </div>
           </div>
 
-          {/* Upload Video (Optional) */}
-          <div>
-            <label className="block font-bold text-text-primary mb-1 text-xs uppercase tracking-wider">
-              Video Produk (Opsional - Maks. 1 Video)
-            </label>
-            {video ? (
-              <div className="relative rounded-xl overflow-hidden border border-border-subtle bg-black max-h-36">
-                <video src={video} controls className="w-full max-h-36 object-contain" />
-                <button
-                  type="button"
-                  onClick={handleRemoveVideo}
-                  className="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white text-xs px-2 py-1 rounded font-bold shadow-md cursor-pointer"
-                >
-                  Hapus Video
-                </button>
-              </div>
-            ) : (
-              <label className="flex items-center gap-2 p-3 border-2 border-dashed border-border-subtle hover:border-primary rounded-xl text-text-secondary hover:text-primary cursor-pointer transition-colors bg-surface">
-                <span className="material-symbols-outlined text-[20px]">videocam</span>
-                <span className="text-xs font-semibold">Upload Video Ulasan (Maks. 25MB)</span>
-                <input type="file" accept="video/*" onChange={handleVideoUpload} className="hidden" />
-              </label>
-            )}
-          </div>
-
           {/* Anonymous Checkbox */}
           <label className="flex items-center gap-2.5 cursor-pointer pt-1">
             <input

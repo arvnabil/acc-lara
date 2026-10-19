@@ -10,8 +10,17 @@ class PricingService
     /** @return array<string, array<string, int|bool>> */
     public function quote(iterable $items, ?PromoCode $promo = null, ?Voucher $voucher = null): array
     {
+        return $this->quoteForOptions($items, $promo, config('shipping.options', []), $voucher);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $options
+     * @return array<string, array<string, int|bool>>
+     */
+    public function quoteForOptions(iterable $items, ?PromoCode $promo, array $options, ?Voucher $voucher = null): array
+    {
         $quotes = [];
-        foreach (config('shipping.options', []) as $option) {
+        foreach ($options as $option) {
             $quotes[$option['id']] = $this->calculate($items, $promo, (int) $option['price'], $voucher);
         }
 
@@ -35,7 +44,9 @@ class PricingService
 
         $discount = 0;
         if ($promo) {
-            $discount = $promo->type === 'percent' ? (int) round($subtotal * $promo->value / 100) : min((int) $promo->value, $subtotal);
+            $discount = $promo->type === 'percent'
+                ? min((int) round($subtotal * $promo->value / 100), $promo->max_discount ?? PHP_INT_MAX)
+                : min((int) $promo->value, $subtotal);
             $discount = min($discount, $subtotal);
         }
 

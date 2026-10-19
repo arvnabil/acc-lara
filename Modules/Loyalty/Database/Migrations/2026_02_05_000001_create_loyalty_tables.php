@@ -10,13 +10,13 @@ return new class extends Migration
     {
         Schema::create('loyalty_accounts', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('company_id')->unique();
+            $table->unsignedBigInteger('client_id')->unique();
             $table->integer('tier_points')->default(0);
             $table->integer('points_balance')->default(0);
             $table->enum('current_tier', ['classic', 'bronze', 'silver', 'gold', 'platinum', 'diamond'])->default('classic');
             $table->date('tier_valid_until');
             $table->timestamps();
-            $table->foreign('company_id')->references('id')->on('companies')->restrictOnDelete();
+            $table->foreign('client_id')->references('id')->on('clients')->restrictOnDelete();
         });
 
         Schema::create('point_ledger', function (Blueprint $table) {
@@ -73,3 +73,5 @@ return new class extends Migration
         Schema::dropIfExists('loyalty_accounts');
     }
 };
+
+

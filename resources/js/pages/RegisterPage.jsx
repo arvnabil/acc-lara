@@ -4,6 +4,7 @@ import { useToast } from '../compat/context';
 import { clearPageCache } from '../pwa';
 
 export default function RegisterPage() {
+  const referralCode = new URLSearchParams(window.location.search).get('referral') || '';
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,7 +22,7 @@ export default function RegisterPage() {
     }
     setLoading(true);
     clearPageCache();
-    router.post('/register', { name, email, password }, {
+    router.post('/register', { name, email, password, referral_code: referralCode || undefined }, {
       onSuccess: () => showToast({ title: 'Akun berhasil dibuat! Selamat bergabung 🎉', type: 'success' }),
       onError: (errors) => showToast({ title: errors.email || errors.name || 'Registrasi gagal.', type: 'error' }),
       onFinish: () => setLoading(false),
@@ -224,9 +225,9 @@ export default function RegisterPage() {
               <button
                 type="button"
                 onClick={handleGoogleRegister}
-                disabled={loading || googleLoading}
-                hidden
-                className="w-full bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-bold text-[14px] py-3 rounded-xl transition-all flex items-center justify-center gap-3 shadow-sm active:scale-98"
+                disabled
+                aria-disabled="true"
+                className="w-full bg-gray-100 border border-gray-200 text-gray-400 font-bold text-[14px] py-3 rounded-xl transition-all flex items-center justify-center gap-3 shadow-sm cursor-not-allowed opacity-75"
               >
                 {googleLoading ? (
                   <span className="w-5 h-5 border-2 border-gray-300 border-t-[#1a56db] rounded-full animate-spin" />

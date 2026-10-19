@@ -529,6 +529,29 @@ CREATE TABLE payment_proofs (
     FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE RESTRICT,
     FOREIGN KEY (verified_by) REFERENCES users(id) ON DELETE RESTRICT
 );
+
+CREATE TABLE payment_transactions (
+    id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    order_id            BIGINT UNSIGNED NOT NULL,
+    provider            VARCHAR(20) NOT NULL DEFAULT 'midtrans',
+    provider_order_id   VARCHAR(50) NOT NULL UNIQUE,
+    attempt             TINYINT UNSIGNED NOT NULL,
+    snap_token          VARCHAR(100) NULL,
+    redirect_url        VARCHAR(500) NULL,
+    status              VARCHAR(30) NOT NULL,
+    payment_channel     VARCHAR(50) NULL,
+    gross_amount        BIGINT UNSIGNED NOT NULL,
+    expires_at          TIMESTAMP NOT NULL,
+    paid_at             TIMESTAMP NULL,
+    last_checked_at     TIMESTAMP NULL,
+    raw                 JSON NULL,
+    created_at          TIMESTAMP,
+    updated_at          TIMESTAMP,
+
+    INDEX idx_order_id (order_id),
+    INDEX idx_status_last_checked (status, last_checked_at),
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE RESTRICT
+);
 ```
 
 > **[PULIH v3.1 / REVISI v3.3 #3] Implementasi Accessor `payment_status` pada Model Order:**
@@ -826,6 +849,7 @@ erDiagram
 
     orders ||--o{ order_items : "detail item (RESTRICT)"
     orders ||--o{ payment_proofs : "bukti bayar (RESTRICT)"
+    orders ||--o{ payment_transactions : "transaksi gateway (RESTRICT)"
     orders ||--o{ order_status_history : "audit status (RESTRICT)"
     orders }o--o| promo_codes : "diskon kode (RESTRICT)"
     orders }o--o| vouchers : "diskon voucher (RESTRICT)"

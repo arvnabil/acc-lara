@@ -30,7 +30,7 @@ return new class extends Migration
             $table->enum('type', ['fixed', 'percent', 'free_shipping']);
             $table->unsignedBigInteger('discount_value');
             $table->unsignedBigInteger('min_order')->default(0);
-            $table->foreignId('company_id')->constrained('companies')->restrictOnDelete();
+            $table->foreignId('client_id')->constrained('clients')->restrictOnDelete();
             $table->foreignId('category_id')->nullable()->constrained('categories')->restrictOnDelete();
             $table->enum('source', ['tier_bronze', 'redeem', 'free_shipping']);
             $table->unsignedInteger('points_cost')->nullable();
@@ -41,8 +41,8 @@ return new class extends Migration
             $table->unsignedTinyInteger('slot')->nullable();
             $table->timestamps();
 
-            $table->unique(['company_id', 'source', 'quarter_key'], 'uq_bronze_per_quarter');
-            $table->unique(['company_id', 'source', 'month_key', 'slot'], 'uq_free_shipping_slot');
+            $table->unique(['client_id', 'source', 'quarter_key'], 'uq_bronze_per_quarter');
+            $table->unique(['client_id', 'source', 'month_key', 'slot'], 'uq_free_shipping_slot');
         });
     }
 
@@ -52,3 +52,5 @@ return new class extends Migration
         Schema::dropIfExists('promo_codes');
     }
 };
+
+

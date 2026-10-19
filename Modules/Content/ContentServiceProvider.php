@@ -5,6 +5,7 @@ namespace Modules\Content;
 use App\Support\Modules\BaseModuleServiceProvider;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use App\Models\NavigationMenu;
 use Modules\Content\Models\Banner;
 
 class ContentServiceProvider extends BaseModuleServiceProvider
@@ -13,6 +14,15 @@ class ContentServiceProvider extends BaseModuleServiceProvider
 
     protected function bootModule(): void
     {
+        Inertia::share('navigationMenus', static fn (): array => NavigationMenu::query()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get(['id', 'label', 'target_type', 'target_value', 'sort_order'])
+            ->map(fn (NavigationMenu $menu): array => $menu->toArray())
+            ->values()
+            ->all());
+
         Inertia::share('banners', static function (Request $request): array {
             if (! $request->routeIs('home')) {
                 return [];

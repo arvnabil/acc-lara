@@ -7,9 +7,9 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
-use Modules\Accounts\Events\CompanyRegistered;
-use Modules\Accounts\Models\Address;
-use Modules\Accounts\Models\Company;
+use Modules\Clients\Events\ClientRegistered;
+use Modules\Clients\Models\Address;
+use Modules\Clients\Models\Client;
 use Tests\TestCase;
 
 uses(TestCase::class, RefreshDatabase::class);
@@ -30,19 +30,19 @@ test('individual storefront registration creates a company and admin user', func
     $response->assertCreated();
 
     $user = User::where('email', 'customer@example.test')->firstOrFail();
-    $company = Company::findOrFail($user->company_id);
+    $company = Client::findOrFail($user->client_id);
 
     expect($company->name)->toBe('Individual Customer')
         ->and($company->npwp)->toBeNull()
         ->and($user->company_role)->toBe('admin');
 
-    Event::assertDispatched(CompanyRegistered::class);
+    Event::assertDispatched(ClientRegistered::class);
 });
 
 test('storefront login supports intended redirect and rejects staff without a company', function () {
-    $company = Company::factory()->create();
+    $company = Client::factory()->create();
     $customer = User::factory()->create([
-        'company_id' => $company->id,
+        'client_id' => $company->id,
         'password' => Hash::make('secret1234'),
     ]);
     $staff = User::factory()->create(['password' => Hash::make('secret1234')]);
@@ -83,8 +83,8 @@ test('forgot password sends the built-in reset notification', function () {
 });
 
 test('address endpoints only allow the owning user', function () {
-    $owner = User::factory()->create(['company_id' => Company::factory()->create()->id]);
-    $other = User::factory()->create(['company_id' => Company::factory()->create()->id]);
+    $owner = User::factory()->create(['client_id' => Client::factory()->create()->id]);
+    $other = User::factory()->create(['client_id' => Client::factory()->create()->id]);
     $address = Address::create([
         'user_id' => $other->id,
         'label' => 'Rumah',
@@ -114,7 +114,7 @@ test('address endpoints only allow the owning user', function () {
 test('guest is redirected to login and logout invalidates the session', function () {
     $this->get('/akun')->assertRedirect('/login');
 
-    $user = User::factory()->create(['company_id' => Company::factory()->create()->id]);
+    $user = User::factory()->create(['client_id' => Client::factory()->create()->id]);
 
     $this->actingAs($user)
         ->post('/logout')
@@ -122,3 +122,7 @@ test('guest is redirected to login and logout invalidates the session', function
 
     expect(auth()->check())->toBeFalse();
 });
+
+
+
+

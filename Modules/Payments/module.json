@@ -1,0 +1,12 @@
+{
+    "name": "Payments",
+    "description": "Midtrans dan pembayaran manual QRIS/transfer bank.",
+    "enabled": true,
+    "priority": 30,
+    "requires": ["Orders", "Clients"],
+    "permissions": [
+        "view_any_payment_transactions",
+        "view_payment_transaction",
+        "check_payment"
+    ]
+}

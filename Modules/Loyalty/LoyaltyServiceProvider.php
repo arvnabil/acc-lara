@@ -7,7 +7,10 @@ use App\Support\Modules\BaseModuleServiceProvider;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Event;
-use Modules\Accounts\Events\CompanyRegistered;
+use Illuminate\Support\Facades\Config;
+use Throwable;
+use App\LoyaltySetting;
+use Modules\Clients\Events\ClientRegistered;
 use Modules\Loyalty\Console\BackfillLoyaltyAccounts;
 use Modules\Loyalty\Jobs\AwardEligiblePointsJob;
 use Modules\Loyalty\Jobs\EvaluateYearEndTierJob;
@@ -30,7 +33,13 @@ class LoyaltyServiceProvider extends BaseModuleServiceProvider
 
     protected function bootModule(): void
     {
-        Event::listen(CompanyRegistered::class, CreateLoyaltyAccount::class);
+        try {
+            Config::set('loyalty', array_replace_recursive(config('loyalty'), LoyaltySetting::getInstance()->settings ?? []));
+        } catch (Throwable) {
+            // The settings table may not exist during the first migration.
+        }
+
+        Event::listen(ClientRegistered::class, CreateLoyaltyAccount::class);
         Event::listen(OrderReturned::class, ReverseOrderPoints::class);
         Event::listen(ReviewStored::class, AwardReviewPoints::class);
         app(Schedule::class)->job(new ExpirePointsJob)->daily()->withoutOverlapping()->onOneServer();
@@ -49,3 +58,7 @@ class LoyaltyServiceProvider extends BaseModuleServiceProvider
         ])->dispatch();
     }
 }
+
+
+
+

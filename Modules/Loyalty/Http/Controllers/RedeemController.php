@@ -4,6 +4,8 @@ namespace Modules\Loyalty\Http\Controllers;
 
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification;
+use Modules\Email\Notifications\VoucherRedeemedNotification;
 use Modules\Loyalty\Services\LoyaltyService;
 
 class RedeemController
@@ -19,6 +21,10 @@ class RedeemController
             'account_name' => ['nullable', 'string', 'max:255'],
         ]);
         $result = $loyalty->redeem($request->user(), $data);
+        if ($data['type'] === 'voucher' && ($result['created'] ?? false)) {
+            Notification::route('mail', $request->user()->email)
+                ->notify(($notification = new VoucherRedeemedNotification($result['redemption']))->afterCommit());
+        }
 
         return back()->with('success', $data['type'] === 'voucher' ? 'Voucher berhasil diterbitkan.' : 'Penukaran e-wallet sedang diproses.');
     }

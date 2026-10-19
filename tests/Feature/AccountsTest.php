@@ -3,16 +3,16 @@
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
-use Modules\Accounts\Events\CompanyRegistered;
-use Modules\Accounts\Models\Address;
-use Modules\Accounts\Models\Company;
+use Modules\Clients\Events\ClientRegistered;
+use Modules\Clients\Models\Address;
+use Modules\Clients\Models\Client;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 uses(Tests\TestCase::class, RefreshDatabase::class);
 
 test('user can belong to a company and have addresses', function () {
-    $company = Company::create([
+    $company = Client::create([
         'name' => 'PT Accommerce Indonesia',
         'npwp' => '01.234.567.8-901.000',
         'phone' => '021-5551234',
@@ -24,7 +24,7 @@ test('user can belong to a company and have addresses', function () {
         'email' => 'budi@accommerce.id',
         'password' => bcrypt('secret123'),
         'phone' => '081234567890',
-        'company_id' => $company->id,
+        'client_id' => $company->id,
         'company_role' => 'admin',
     ]);
 
@@ -40,7 +40,7 @@ test('user can belong to a company and have addresses', function () {
         'is_default' => true,
     ]);
 
-    expect($user->company->id)->toBe($company->id);
+    expect($user->client->id)->toBe($company->id);
     expect($company->users)->toHaveCount(1);
     expect($user->addresses)->toHaveCount(1);
     expect($user->addresses->first()->city)->toBe('Jakarta Selatan');
@@ -65,13 +65,17 @@ test('administrator role passes gate before and can access panel', function () {
 test('company registered event can be dispatched', function () {
     Event::fake();
 
-    $company = Company::create([
+    $company = Client::create([
         'name' => 'PT Sukses Jaya',
     ]);
 
-    CompanyRegistered::dispatch($company);
+    ClientRegistered::dispatch($company);
 
-    Event::assertDispatched(CompanyRegistered::class, function ($event) use ($company) {
-        return $event->company->id === $company->id;
+    Event::assertDispatched(ClientRegistered::class, function ($event) use ($company) {
+        return $event->client->id === $company->id;
     });
 });
+
+
+
+

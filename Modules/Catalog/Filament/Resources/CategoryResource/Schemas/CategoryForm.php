@@ -4,18 +4,25 @@ namespace Modules\Catalog\Filament\Resources\CategoryResource\Schemas;
 
 use Filament\Forms;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Group;
+use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Modules\Catalog\Filament\Resources\CategoryResource\Pages;
 use Modules\Catalog\Models\Category;
+use Modules\SEO\Filament\Resources\SeoMetaResource\Schemas\SeoForm;
 
 class CategoryForm
 {
     public static function schema(Schema $form): Schema
         {
             return $form->schema([
+                Tabs::make('CategoryTabs')
+                    ->tabs([
+                        Tabs\Tab::make('Category Details')
+                            ->schema([
                 Section::make()->schema([
                     Forms\Components\TextInput::make('name')
                         ->required()
@@ -49,6 +56,12 @@ class CategoryForm
                         ->numeric()
                         ->default(0),
                 ])->columns(2),
+                            ]),
+                        Tabs\Tab::make('SEO')->schema([
+                            Group::make()->relationship('seo')->schema(SeoForm::schema()),
+                        ]),
+                    ])
+                    ->columnSpanFull(),
             ]);
         }
 }

@@ -3,7 +3,7 @@
   "description": "Produk, kategori, brand. Sumber data: products-index.json, categories, brands.",
   "enabled": true,
   "priority": 10,
-  "requires": [],
+  "requires": ["SEO"],
   "permissions": [
     "view_any_product", "view_product", "create_product", "update_product", "delete_product",
     "view_any_category", "view_category", "create_category", "update_category", "delete_category",

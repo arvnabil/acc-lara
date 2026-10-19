@@ -31,7 +31,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Model::preventLazyLoading(! app()->isProduction());
 
-        if (app()->isProduction()) {
+        if (app()->isProduction() || Str::startsWith((string) config('app.url'), 'https://')) {
             URL::forceScheme('https');
         }
 

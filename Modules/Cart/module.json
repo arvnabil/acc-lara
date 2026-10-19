@@ -3,6 +3,6 @@
   "description": "Cart dan wishlist.",
   "enabled": true,
   "priority": 15,
-  "requires": ["Accounts", "Catalog", "Promo"],
+  "requires": ["Clients", "Catalog", "Promo"],
   "permissions": []
 }

@@ -4,7 +4,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
-use Modules\Accounts\Models\Company;
+use Modules\Clients\Models\Client;
 use Modules\Cart\Models\Cart;
 use Modules\Cart\Models\Wishlist;
 use Modules\Cart\Services\PricingService;
@@ -26,7 +26,7 @@ uses(TestCase::class, RefreshDatabase::class);
 function prerequisiteCustomer(array $attributes = []): User
 {
     return User::factory()->create([
-        'company_id' => Company::factory()->create()->id,
+        'client_id' => Client::factory()->create()->id,
         'company_role' => 'admin',
         ...$attributes,
     ]);
@@ -144,7 +144,7 @@ test('cancelling an order restores stock and promo quota', function (): void {
     $user = prerequisiteCustomer();
     $product = Product::factory()->create(['stock' => 0]);
     $promo = PromoCode::factory()->create(['used_count' => 1]);
-    $order = Order::factory()->create(['user_id' => $user->id, 'company_id' => $user->company_id, 'promo_code_id' => $promo->id, 'status' => OrderStatus::PendingPayment]);
+    $order = Order::factory()->create(['user_id' => $user->id, 'client_id' => $user->client_id, 'promo_code_id' => $promo->id, 'status' => OrderStatus::PendingPayment]);
     $order->items()->create(['product_id' => $product->id, 'product_name' => $product->name, 'sku' => $product->sku, 'unit_price' => 1000, 'quantity' => 1, 'subtotal' => 1000]);
 
     app(OrderStateMachine::class)->transition($order, OrderStatus::Cancelled);
@@ -155,7 +155,7 @@ test('cancelling an order restores stock and promo quota', function (): void {
 test('expiring pending orders restores stock and is idempotent', function (): void {
     $user = prerequisiteCustomer();
     $product = Product::factory()->create(['stock' => 0]);
-    $order = Order::factory()->create(['user_id' => $user->id, 'company_id' => $user->company_id, 'status' => OrderStatus::PendingPayment, 'created_at' => now()->subDays(2)]);
+    $order = Order::factory()->create(['user_id' => $user->id, 'client_id' => $user->client_id, 'status' => OrderStatus::PendingPayment, 'created_at' => now()->subDays(2)]);
     $order->items()->create(['product_id' => $product->id, 'product_name' => $product->name, 'sku' => $product->sku, 'unit_price' => 1000, 'quantity' => 1, 'subtotal' => 1000]);
 
     app(ExpirePendingOrdersJob::class)->handle(app(OrderStateMachine::class));
@@ -168,7 +168,7 @@ test('returning an order restores stock and emits OrderReturned', function (): v
     Event::fake([OrderReturned::class]);
     $user = prerequisiteCustomer();
     $product = Product::factory()->create(['stock' => 0]);
-    $order = Order::factory()->create(['user_id' => $user->id, 'company_id' => $user->company_id, 'status' => OrderStatus::Completed]);
+    $order = Order::factory()->create(['user_id' => $user->id, 'client_id' => $user->client_id, 'status' => OrderStatus::Completed]);
     $order->items()->create(['product_id' => $product->id, 'product_name' => $product->name, 'sku' => $product->sku, 'unit_price' => 1000, 'quantity' => 1, 'subtotal' => 1000]);
 
     app(OrderStateMachine::class)->transition($order, OrderStatus::Returned);
@@ -183,7 +183,7 @@ test('created orders have unique sequential ACC numbers', function (): void {
     $first = $action->execute(prerequisiteCartItem($user, ['stock' => 2]), ['shipping_method' => 'pickup', 'shipping_address' => ['recipient' => 'Nabil'], 'payment_method' => 'qris']);
     $second = $action->execute(prerequisiteCartItem($user, ['stock' => 2]), ['shipping_method' => 'pickup', 'shipping_address' => ['recipient' => 'Nabil'], 'payment_method' => 'qris']);
 
-    expect($first->number)->toBe('ACC-'.str_pad((string) $first->id, 5, '0', STR_PAD_LEFT))
+    expect($first->number)->toBe('ACC-'.now()->format('my').'-'.str_pad((string) $first->id, 3, '0', STR_PAD_LEFT))
         ->and($second->id)->toBe($first->id + 1)
         ->and($second->number)->not->toBe($first->number);
 });
@@ -215,7 +215,7 @@ test('voucher dipakai saat checkout dan dikembalikan saat order dibatalkan', fun
     $product = Product::factory()->create(['stock' => 2, 'regular_price' => 100000]);
     $cart = Cart::create(['user_id' => $user->id]);
     $cart->items()->create(['product_id' => $product->id, 'quantity' => 1]);
-    Voucher::factory()->create(['company_id' => $user->company_id, 'code' => 'VOUCHER-CANCEL', 'type' => 'fixed', 'discount_value' => 10000, 'min_order' => 0]);
+    Voucher::factory()->create(['client_id' => $user->client_id, 'code' => 'VOUCHER-CANCEL', 'type' => 'fixed', 'discount_value' => 10000, 'min_order' => 0]);
 
     $this->actingAs($user)->post('/cart/promo', ['code' => 'VOUCHER-CANCEL'])->assertRedirect();
     $response = $this->actingAs($user)->post('/checkout', ['shipping_method' => 'pickup', 'shipping_address' => ['recipient' => 'Nabil', 'phone' => '0812', 'province' => 'Banten', 'city' => 'Tangerang', 'address' => 'Jalan Test', 'postal_code' => '15111'], 'payment_method' => 'qris']);
@@ -234,7 +234,7 @@ test('voucher dikembalikan saat pesanan kedaluwarsa', function (): void {
     $product = Product::factory()->create(['stock' => 2, 'regular_price' => 100000]);
     $cart = Cart::create(['user_id' => $user->id]);
     $cart->items()->create(['product_id' => $product->id, 'quantity' => 1]);
-    $voucher = Voucher::factory()->create(['company_id' => $user->company_id, 'code' => 'VOUCHER-EXPIRE', 'type' => 'fixed', 'discount_value' => 10000, 'min_order' => 0]);
+    $voucher = Voucher::factory()->create(['client_id' => $user->client_id, 'code' => 'VOUCHER-EXPIRE', 'type' => 'fixed', 'discount_value' => 10000, 'min_order' => 0]);
 
     $this->actingAs($user)->post('/cart/promo', ['code' => $voucher->code])->assertRedirect();
     $this->actingAs($user)->post('/checkout', ['shipping_method' => 'pickup', 'shipping_address' => ['recipient' => 'Nabil', 'phone' => '0812', 'province' => 'Banten', 'city' => 'Tangerang', 'address' => 'Jalan Test', 'postal_code' => '15111'], 'payment_method' => 'qris'])->assertRedirect();
@@ -248,10 +248,14 @@ test('voucher dikembalikan saat pesanan kedaluwarsa', function (): void {
 
 test('auto completing shipped orders is idempotent', function (): void {
     $user = prerequisiteCustomer();
-    $order = Order::factory()->create(['user_id' => $user->id, 'company_id' => $user->company_id, 'status' => OrderStatus::Shipped, 'shipped_at' => now()->subDays(8)]);
+    $order = Order::factory()->create(['user_id' => $user->id, 'client_id' => $user->client_id, 'status' => OrderStatus::Shipped, 'shipped_at' => now()->subDays(8)]);
 
     app(AutoCompleteShippedOrdersJob::class)->handle(app(OrderStateMachine::class));
     app(AutoCompleteShippedOrdersJob::class)->handle(app(OrderStateMachine::class));
 
     expect($order->fresh()->status)->toBe(OrderStatus::Completed);
 });
+
+
+
+

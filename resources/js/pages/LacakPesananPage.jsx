@@ -43,15 +43,14 @@ function StatusBar({ status }) {
 export default function LacakPesananPage() {
   const { user } = useAuth();
   const serverOrder = usePage().props.order;
-  const [orderInput, setOrderInput] = useState('');
-  const [searched, setSearched] = useState(false);
-  const [foundOrder, setFoundOrder] = useState(null);
+  const [orderInput, setOrderInput] = useState(serverOrder?.number || '');
+  const [searched, setSearched] = useState(Boolean(serverOrder));
+  const [foundOrder, setFoundOrder] = useState(serverOrder || null);
 
   function handleSearch(e) {
     e.preventDefault();
     setSearched(true);
     inertiaRouter.get('/lacak-pesanan', { number: orderInput.trim() }, { preserveState: true, preserveScroll: true });
-    setFoundOrder(serverOrder || null);
   }
 
   const demoOrders = user?.orders || [];
@@ -76,7 +75,7 @@ export default function LacakPesananPage() {
               type="text"
               value={orderInput}
               onChange={e => setOrderInput(e.target.value)}
-              placeholder="Contoh: ACC-98214"
+              placeholder="Contoh: ACC-1026-011"
               className="w-full border border-border-subtle rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-primary bg-gray-50"
             />
           </div>
@@ -123,15 +122,47 @@ export default function LacakPesananPage() {
               </ul>
             </div>
 
-            {/* Info pengiriman mock */}
             <div className="mt-4 bg-blue-50 rounded-xl p-4 text-sm text-blue-800">
-              <div className="flex items-start gap-2">
+              <div className="flex items-start gap-2 mb-4">
                 <span className="material-symbols-outlined text-[18px] mt-0.5 text-blue-600">local_shipping</span>
                 <div>
-                  <div className="font-semibold">JNE Express — JNEXXX1234567890</div>
-                  <div className="text-xs text-blue-700 mt-0.5">Estimasi tiba: 1–3 hari kerja. Hubungi CS untuk update real-time.</div>
+                  <div className="font-semibold">
+                    {foundOrder.shippingLabel || 'Kurir belum ditentukan'}
+                    {' — '}
+                    {foundOrder.trackingNumber || foundOrder.biteshipWaybillId || 'Resi belum tersedia'}
+                  </div>
+                  <div className="text-xs text-blue-700 mt-0.5">
+                    Estimasi tiba: {foundOrder.shippingEstimate || 'Menunggu estimasi'}
+                  </div>
                 </div>
               </div>
+
+              {foundOrder.biteshipTrackingHistory?.length > 0 ? (
+                <div className="border-t border-blue-100 pt-4 ml-1">
+                  {foundOrder.biteshipTrackingHistory.map((event, index) => (
+                    <div key={`${event.updated_at || event.status}-${index}`} className="flex gap-3 relative pb-4 last:pb-0">
+                      {index < foundOrder.biteshipTrackingHistory.length - 1 && (
+                        <span className="absolute left-[5px] top-3 bottom-0 w-px bg-blue-200" />
+                      )}
+                      <span className={`relative z-10 mt-1 h-3 w-3 rounded-full border-2 ${index === 0 ? 'border-blue-600 bg-blue-600' : 'border-blue-300 bg-blue-50'}`} />
+                      <div className="flex-1">
+                        <div className={`font-semibold ${index === 0 ? 'text-blue-800' : 'text-blue-700'}`}>
+                          {event.note || event.status || 'Status pengiriman diperbarui'}
+                        </div>
+                        {event.updated_at && (
+                          <div className="text-[11px] text-blue-600 mt-0.5">
+                            {new Date(event.updated_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="border-t border-blue-100 pt-3 text-xs text-blue-700">
+                  Riwayat perjalanan akan tampil setelah data tracking Biteship tersedia.
+                </div>
+              )}
             </div>
           </div>
         ) : (

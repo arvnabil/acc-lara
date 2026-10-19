@@ -191,9 +191,9 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={handleGoogleLogin}
-                disabled={loading || googleLoading}
-                hidden
-                className="w-full bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-bold text-[14px] py-3 rounded-xl transition-all flex items-center justify-center gap-3 shadow-sm active:scale-98"
+                disabled
+                aria-disabled="true"
+                className="w-full bg-gray-100 border border-gray-200 text-gray-400 font-bold text-[14px] py-3 rounded-xl transition-all flex items-center justify-center gap-3 shadow-sm cursor-not-allowed opacity-75"
               >
                 {googleLoading ? (
                   <span className="w-5 h-5 border-2 border-gray-300 border-t-[#1a56db] rounded-full animate-spin" />

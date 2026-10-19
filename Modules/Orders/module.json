@@ -3,6 +3,6 @@
   "description": "Pesanan, status, pembayaran. Satu-satunya pemilik angka harga (PricingService).",
   "enabled": true,
   "priority": 20,
-  "requires": ["Catalog", "Promo", "Accounts"],
+  "requires": ["Catalog", "Promo", "Clients"],
   "permissions": ["view_any_order", "view_order", "verify_payment_order", "process_order", "pack_order", "ship_order", "complete_order", "cancel_order", "return_order"]
 }

@@ -3,9 +3,11 @@
 namespace Modules\Catalog\Filament\Resources\ProductResource\Schemas;
 
 use Modules\Catalog\Filament\Resources\ProductResource;
+use Modules\SEO\Filament\Resources\SeoMetaResource\Schemas\SeoForm;
 use Filament\Forms;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
@@ -24,6 +26,10 @@ class ProductForm
     public static function schema(Schema $form): Schema
         {
             return $form->schema([
+                Tabs::make('ProductTabs')
+                    ->tabs([
+                        Tabs\Tab::make('Product Details')
+                            ->schema([
                 Group::make()->schema([
                     // ── Main Info ──────────────────────────────────────────────
                     Section::make('Product Info')->schema([
@@ -86,6 +92,37 @@ class ProductForm
                                 'h2', 'h3', 'blockquote',
                             ]),
                     ]),
+
+                    Section::make('Shipping Package')->schema([
+                        Forms\Components\TextInput::make('weight_grams')
+                            ->label('Weight')
+                            ->numeric()
+                            ->integer()
+                            ->minValue(1)
+                            ->suffix('gram')
+                            ->helperText('Use packed product weight.'),
+
+                        Forms\Components\TextInput::make('length_cm')
+                            ->label('Length')
+                            ->numeric()
+                            ->integer()
+                            ->minValue(1)
+                            ->suffix('cm'),
+
+                        Forms\Components\TextInput::make('width_cm')
+                            ->label('Width')
+                            ->numeric()
+                            ->integer()
+                            ->minValue(1)
+                            ->suffix('cm'),
+
+                        Forms\Components\TextInput::make('height_cm')
+                            ->label('Height')
+                            ->numeric()
+                            ->integer()
+                            ->minValue(1)
+                            ->suffix('cm'),
+                    ])->columns(4),
     
                     // ── Variants ───────────────────────────────────────────────
                     Section::make('Variants')->schema([
@@ -114,6 +151,30 @@ class ProductForm
                                 Forms\Components\TextInput::make('stock')
                                     ->numeric()
                                     ->default(0),
+
+                                Forms\Components\TextInput::make('weight_grams')
+                                    ->label('Weight (g)')
+                                    ->numeric()
+                                    ->integer()
+                                    ->minValue(1),
+
+                                Forms\Components\TextInput::make('length_cm')
+                                    ->label('Length (cm)')
+                                    ->numeric()
+                                    ->integer()
+                                    ->minValue(1),
+
+                                Forms\Components\TextInput::make('width_cm')
+                                    ->label('Width (cm)')
+                                    ->numeric()
+                                    ->integer()
+                                    ->minValue(1),
+
+                                Forms\Components\TextInput::make('height_cm')
+                                    ->label('Height (cm)')
+                                    ->numeric()
+                                    ->integer()
+                                    ->minValue(1),
     
                                 Forms\Components\Toggle::make('is_dummy_price')
                                     ->label('Dummy Price'),
@@ -219,7 +280,17 @@ class ProductForm
                             ->content(fn (?Product $record) => $record?->updated_at?->diffForHumans()),
                     ]),
                 ])->columnSpan(['lg' => 1]),
-            ])->columns(3);
+                            ])
+                            ->columns(3),
+                        Tabs\Tab::make('SEO')
+                            ->schema([
+                                Group::make()
+                                    ->relationship('seo')
+                                    ->schema(SeoForm::schema()),
+                            ]),
+                    ])
+                    ->columnSpanFull(),
+            ]);
         }
 }
 

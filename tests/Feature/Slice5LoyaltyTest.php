@@ -3,7 +3,7 @@
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
-use Modules\Accounts\Models\Company;
+use Modules\Clients\Models\Client;
 use Modules\Loyalty\Jobs\AwardEligiblePointsJob;
 use Modules\Loyalty\Jobs\EvaluateYearEndTierJob;
 use Modules\Loyalty\Jobs\ExpirePointsJob;
@@ -25,9 +25,9 @@ uses(TestCase::class, RefreshDatabase::class);
 
 function loyaltyAdmin(array $attributes = []): User
 {
-    $company = Company::factory()->create();
+    $company = Client::factory()->create();
 
-    return User::factory()->create(['company_id' => $company->id, 'company_role' => 'admin', ...$attributes]);
+    return User::factory()->create(['client_id' => $company->id, 'company_role' => 'admin', ...$attributes]);
 }
 
 function matureLedger(LoyaltyAccount $account, int $points = 1000): PointLedger
@@ -45,8 +45,8 @@ function matureLedger(LoyaltyAccount $account, int $points = 1000): PointLedger
 
 test('award dua kali idempoten dan bonus memakai nilai tier server', function (): void {
     $user = loyaltyAdmin();
-    $account = app(LoyaltyService::class)->createAccount($user->company_id);
-    $order = Order::factory()->create(['user_id' => $user->id, 'company_id' => $user->company_id, 'status' => OrderStatus::Completed, 'goods_subtotal' => 10000000, 'discount_on_goods' => 500000]);
+    $account = app(LoyaltyService::class)->createAccount($user->client_id);
+    $order = Order::factory()->create(['user_id' => $user->id, 'client_id' => $user->client_id, 'status' => OrderStatus::Completed, 'goods_subtotal' => 10000000, 'discount_on_goods' => 500000]);
 
     app(LoyaltyService::class)->awardForOrder($order);
     app(LoyaltyService::class)->awardForOrder($order);
@@ -57,8 +57,8 @@ test('award dua kali idempoten dan bonus memakai nilai tier server', function ()
 
 test('tier dapat naik beberapa level sekaligus dan tidak turun saat award', function (): void {
     $user = loyaltyAdmin();
-    $account = app(LoyaltyService::class)->createAccount($user->company_id);
-    $order = Order::factory()->create(['user_id' => $user->id, 'company_id' => $user->company_id, 'status' => OrderStatus::Completed, 'goods_subtotal' => 400000000]);
+    $account = app(LoyaltyService::class)->createAccount($user->client_id);
+    $order = Order::factory()->create(['user_id' => $user->id, 'client_id' => $user->client_id, 'status' => OrderStatus::Completed, 'goods_subtotal' => 400000000]);
 
     app(LoyaltyService::class)->awardForOrder($order);
 
@@ -68,7 +68,7 @@ test('tier dapat naik beberapa level sekaligus dan tidak turun saat award', func
 test('poin yang belum matang tidak dapat ditukar', function (): void {
     $this->travelTo(now()->subDays(29));
     $user = loyaltyAdmin();
-    $account = app(LoyaltyService::class)->createAccount($user->company_id);
+    $account = app(LoyaltyService::class)->createAccount($user->client_id);
     $account->update(['points_balance' => 500]);
     $account->pointLedger()->create(['type' => 'earn_base', 'points' => 500, 'remaining_points' => 500, 'earned_at' => now(), 'idempotency_key' => fake()->unique()->uuid()]);
 
@@ -78,7 +78,7 @@ test('poin yang belum matang tidak dapat ditukar', function (): void {
 
 test('redeem klik ganda dengan idempotency key menghasilkan satu redemption', function (): void {
     $user = loyaltyAdmin();
-    $account = app(LoyaltyService::class)->createAccount($user->company_id);
+    $account = app(LoyaltyService::class)->createAccount($user->client_id);
     $account->update(['points_balance' => 500]);
     matureLedger($account, 500);
     $data = ['type' => 'ewallet', 'points' => 500, 'idempotency_key' => 'same-key'];
@@ -91,7 +91,7 @@ test('redeem klik ganda dengan idempotency key menghasilkan satu redemption', fu
 
 test('redeem memotong poin matang secara FIFO dan mengunci ledger', function (): void {
     $user = loyaltyAdmin();
-    $account = app(LoyaltyService::class)->createAccount($user->company_id);
+    $account = app(LoyaltyService::class)->createAccount($user->client_id);
     $account->update(['points_balance' => 1000]);
     $first = matureLedger($account, 300);
     $second = $account->pointLedger()->create(['type' => 'earn_base', 'points' => 700, 'remaining_points' => 700, 'earned_at' => now()->subDays(30), 'idempotency_key' => fake()->unique()->uuid()]);
@@ -108,7 +108,7 @@ test('sub akun mendapat 403 saat menukar poin', function (): void {
 
 test('failed redemption mengembalikan poin lewat adjustment', function (): void {
     $user = loyaltyAdmin();
-    $account = app(LoyaltyService::class)->createAccount($user->company_id);
+    $account = app(LoyaltyService::class)->createAccount($user->client_id);
     $account->update(['points_balance' => 500]);
     matureLedger($account, 500);
     $redemption = app(LoyaltyService::class)->redeem($user, ['type' => 'ewallet', 'points' => 500, 'idempotency_key' => fake()->uuid()])['redemption'];
@@ -121,7 +121,7 @@ test('failed redemption mengembalikan poin lewat adjustment', function (): void 
 test('expire points menurunkan saldo dan idempoten', function (): void {
     $this->travelTo(now());
     $user = loyaltyAdmin();
-    $account = app(LoyaltyService::class)->createAccount($user->company_id);
+    $account = app(LoyaltyService::class)->createAccount($user->client_id);
     $account->update(['points_balance' => 100]);
     $account->pointLedger()->create(['type' => 'earn_base', 'points' => 100, 'remaining_points' => 100, 'earned_at' => now()->subYear(), 'expires_at' => now()->subDay(), 'idempotency_key' => fake()->unique()->uuid()]);
 
@@ -135,9 +135,9 @@ test('expire points menurunkan saldo dan idempoten', function (): void {
 
 test('retur lalu tukar ditolak dan retur idempoten', function (): void {
     $user = loyaltyAdmin();
-    $account = app(LoyaltyService::class)->createAccount($user->company_id);
+    $account = app(LoyaltyService::class)->createAccount($user->client_id);
     $account->update(['points_balance' => 500]);
-    $order = Order::factory()->create(['user_id' => $user->id, 'company_id' => $user->company_id, 'status' => OrderStatus::Returned, 'points_awarded_at' => now()]);
+    $order = Order::factory()->create(['user_id' => $user->id, 'client_id' => $user->client_id, 'status' => OrderStatus::Returned, 'points_awarded_at' => now()]);
     $account->pointLedger()->create(['order_id' => $order->id, 'type' => 'earn_base', 'points' => 500, 'remaining_points' => 500, 'counts_for_tier' => true, 'earned_at' => now()->subDays(31), 'idempotency_key' => fake()->unique()->uuid()]);
 
     app(LoyaltyService::class)->reverseForOrder($order);
@@ -151,20 +151,20 @@ test('retur lalu tukar ditolak dan retur idempoten', function (): void {
 test('Bronze hanya mendapat satu voucher per kuartal', function (): void {
     $this->travelTo(now()->startOfQuarter());
     $user = loyaltyAdmin();
-    $account = app(LoyaltyService::class)->createAccount($user->company_id);
+    $account = app(LoyaltyService::class)->createAccount($user->client_id);
     $account->update(['current_tier' => 'bronze']);
     (new IssueTierBenefitsJob)->handle(app(VoucherService::class));
     (new IssueTierBenefitsJob)->handle(app(VoucherService::class));
 
-    expect(Voucher::where('company_id', $user->company_id)->where('source', 'tier_bronze')->count())->toBe(1);
+    expect(Voucher::where('client_id', $user->client_id)->where('source', 'tier_bronze')->count())->toBe(1);
     $this->travelBack();
 })->group('slow');
 
 test('scanner hanya memberi poin setelah masa retur H plus tujuh', function (): void {
     $this->travelTo(now()->subDays(8));
     $user = loyaltyAdmin();
-    $account = app(LoyaltyService::class)->createAccount($user->company_id);
-    $order = Order::factory()->create(['user_id' => $user->id, 'company_id' => $user->company_id, 'status' => OrderStatus::Completed, 'payment_type' => 'direct', 'completed_at' => now()]);
+    $account = app(LoyaltyService::class)->createAccount($user->client_id);
+    $order = Order::factory()->create(['user_id' => $user->id, 'client_id' => $user->client_id, 'status' => OrderStatus::Completed, 'payment_type' => 'direct', 'completed_at' => now()]);
     $this->travelTo(now()->addDays(8));
 
     (new AwardEligiblePointsJob)->handle();
@@ -176,12 +176,12 @@ test('scanner hanya memberi poin setelah masa retur H plus tujuh', function (): 
 test('Diamond mendapat empat voucher gratis ongkir per bulan', function (): void {
     $this->travelTo(now()->startOfMonth());
     $user = loyaltyAdmin();
-    $account = app(LoyaltyService::class)->createAccount($user->company_id);
+    $account = app(LoyaltyService::class)->createAccount($user->client_id);
     $account->update(['current_tier' => 'diamond']);
 
     (new IssueTierBenefitsJob)->handle(app(VoucherService::class));
 
-    expect(Voucher::where('company_id', $user->company_id)->where('source', 'free_shipping')->count())->toBe(4);
+    expect(Voucher::where('client_id', $user->client_id)->where('source', 'free_shipping')->count())->toBe(4);
     $this->travelBack();
 })->group('slow');
 
@@ -207,7 +207,7 @@ test('year end reset is not called when evaluation fails', function (): void {
 test('evaluasi akhir tahun turun maksimal satu level sebelum reset', function (): void {
     $this->travelTo(now()->endOfYear());
     $user = loyaltyAdmin();
-    $account = app(LoyaltyService::class)->createAccount($user->company_id);
+    $account = app(LoyaltyService::class)->createAccount($user->client_id);
     $account->update(['current_tier' => 'gold', 'tier_points' => 500, 'tier_valid_until' => now()->toDateString()]);
     (new EvaluateYearEndTierJob)->handle(app(LoyaltyService::class));
 
@@ -219,9 +219,9 @@ test('evaluasi akhir tahun turun maksimal satu level sebelum reset', function ()
 
 test('saldo poin boleh minus setelah retur', function (): void {
     $user = loyaltyAdmin();
-    $account = app(LoyaltyService::class)->createAccount($user->company_id);
+    $account = app(LoyaltyService::class)->createAccount($user->client_id);
     $account->update(['points_balance' => 0]);
-    $order = Order::factory()->create(['user_id' => $user->id, 'company_id' => $user->company_id, 'status' => OrderStatus::Completed, 'points_awarded_at' => now()]);
+    $order = Order::factory()->create(['user_id' => $user->id, 'client_id' => $user->client_id, 'status' => OrderStatus::Completed, 'points_awarded_at' => now()]);
     $account->pointLedger()->create(['order_id' => $order->id, 'type' => 'earn_base', 'points' => 100, 'remaining_points' => 100, 'counts_for_tier' => true, 'earned_at' => now()->subDays(31), 'idempotency_key' => fake()->unique()->uuid()]);
 
     app(LoyaltyService::class)->reverseForOrder($order);
@@ -232,9 +232,9 @@ test('saldo poin boleh minus setelah retur', function (): void {
 test('tier points tidak pernah negatif pada retur lintas tahun', function (): void {
     $this->travelTo(now()->startOfYear());
     $user = loyaltyAdmin();
-    $account = app(LoyaltyService::class)->createAccount($user->company_id);
+    $account = app(LoyaltyService::class)->createAccount($user->client_id);
     $account->update(['tier_points' => 25, 'points_balance' => 25]);
-    $order = Order::factory()->create(['user_id' => $user->id, 'company_id' => $user->company_id, 'status' => OrderStatus::Completed, 'points_awarded_at' => now()->subYear()]);
+    $order = Order::factory()->create(['user_id' => $user->id, 'client_id' => $user->client_id, 'status' => OrderStatus::Completed, 'points_awarded_at' => now()->subYear()]);
     $account->pointLedger()->create(['order_id' => $order->id, 'type' => 'earn_base', 'points' => 100, 'remaining_points' => 100, 'counts_for_tier' => true, 'earned_at' => now()->subYear(), 'idempotency_key' => fake()->unique()->uuid()]);
 
     app(LoyaltyService::class)->reverseForOrder($order);
@@ -245,7 +245,7 @@ test('tier points tidak pernah negatif pada retur lintas tahun', function (): vo
 
 test('batas lima ribu poin bulanan hanya berlaku untuk ewallet', function (): void {
     $user = loyaltyAdmin();
-    $account = app(LoyaltyService::class)->createAccount($user->company_id);
+    $account = app(LoyaltyService::class)->createAccount($user->client_id);
     $account->update(['points_balance' => 5750]);
     matureLedger($account, 5750);
 
@@ -258,7 +258,7 @@ test('batas lima ribu poin bulanan hanya berlaku untuk ewallet', function (): vo
 
 test('poin kedaluwarsa tidak bisa ditukar', function (): void {
     $user = loyaltyAdmin();
-    $account = app(LoyaltyService::class)->createAccount($user->company_id);
+    $account = app(LoyaltyService::class)->createAccount($user->client_id);
     $account->update(['points_balance' => 500]);
     $account->pointLedger()->create(['type' => 'earn_base', 'points' => 500, 'remaining_points' => 500, 'counts_for_tier' => true, 'earned_at' => now()->subDays(31), 'expires_at' => now()->subMinute(), 'idempotency_key' => fake()->unique()->uuid()]);
 
@@ -267,7 +267,7 @@ test('poin kedaluwarsa tidak bisa ditukar', function (): void {
 
 test('tukar melebihi saldo ditolak', function (): void {
     $user = loyaltyAdmin();
-    $account = app(LoyaltyService::class)->createAccount($user->company_id);
+    $account = app(LoyaltyService::class)->createAccount($user->client_id);
     $account->update(['points_balance' => 500]);
     matureLedger($account, 500);
 
@@ -276,7 +276,7 @@ test('tukar melebihi saldo ditolak', function (): void {
 
 test('nominal tukar di luar daftar ditolak', function (): void {
     $user = loyaltyAdmin();
-    $account = app(LoyaltyService::class)->createAccount($user->company_id);
+    $account = app(LoyaltyService::class)->createAccount($user->client_id);
     $account->update(['points_balance' => 5000]);
     matureLedger($account, 5000);
 
@@ -285,8 +285,8 @@ test('nominal tukar di luar daftar ditolak', function (): void {
 
 test('order dummy price tidak mendapat poin', function (): void {
     $user = loyaltyAdmin();
-    $account = app(LoyaltyService::class)->createAccount($user->company_id);
-    $order = Order::factory()->create(['user_id' => $user->id, 'company_id' => $user->company_id, 'status' => OrderStatus::Completed, 'has_dummy_price_item' => true, 'goods_subtotal' => 1000000]);
+    $account = app(LoyaltyService::class)->createAccount($user->client_id);
+    $order = Order::factory()->create(['user_id' => $user->id, 'client_id' => $user->client_id, 'status' => OrderStatus::Completed, 'has_dummy_price_item' => true, 'goods_subtotal' => 1000000]);
 
     app(LoyaltyService::class)->awardForOrder($order);
 
@@ -296,10 +296,14 @@ test('order dummy price tidak mendapat poin', function (): void {
 test('voucher redemption memakai minimum order dan company pemilik', function (): void {
     $user = loyaltyAdmin();
     $other = loyaltyAdmin();
-    $account = app(LoyaltyService::class)->createAccount($user->company_id);
-    $voucher = Voucher::factory()->create(['company_id' => $user->company_id, 'source' => 'redeem', 'code' => 'LOYALTY-TEST', 'min_order' => 100000]);
+    $account = app(LoyaltyService::class)->createAccount($user->client_id);
+    $voucher = Voucher::factory()->create(['client_id' => $user->client_id, 'source' => 'redeem', 'code' => 'LOYALTY-TEST', 'min_order' => 100000]);
     $service = app(PromoService::class);
 
-    expect($service->validateForCompany('LOYALTY-TEST', 100000, $user->company)['voucher']->id)->toBe($voucher->id);
-    expect(fn () => $service->validateForCompany('LOYALTY-TEST', 100000, $other->company))->toThrow(InvalidArgumentException::class);
+    expect($service->validateForClient('LOYALTY-TEST', 100000, $user->client)['voucher']->id)->toBe($voucher->id);
+    expect(fn () => $service->validateForClient('LOYALTY-TEST', 100000, $other->client))->toThrow(InvalidArgumentException::class);
 });
+
+
+
+

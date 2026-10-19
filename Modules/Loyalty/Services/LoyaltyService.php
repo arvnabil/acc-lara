@@ -2,9 +2,12 @@
 
 namespace Modules\Loyalty\Services;
 
+use App\LoyaltySetting;
 use App\Models\User;
 use App\Support\Events\ReviewStored;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Modules\Loyalty\Enums\LoyaltyTier;
 use Modules\Loyalty\Models\LoyaltyAccount;
@@ -15,17 +18,55 @@ use Modules\Promo\Services\VoucherService;
 
 class LoyaltyService
 {
-    public function createAccount(int $companyId): LoyaltyAccount
+    public function createAccount(int $clientId): LoyaltyAccount
     {
         return LoyaltyAccount::query()->firstOrCreate(
-            ['company_id' => $companyId],
+            ['client_id' => $clientId],
             ['current_tier' => LoyaltyTier::Classic, 'tier_valid_until' => now()->addYear()->endOfYear()->toDateString()],
         );
     }
 
     public function accountForUser(User $user): ?LoyaltyAccount
     {
-        return $user->company_id ? $this->createAccount((int) $user->company_id) : null;
+        return $user->client_id ? $this->createAccount((int) $user->client_id) : null;
+    }
+
+    public function awardForRegistration(User $user): void
+    {
+        $settings = LoyaltySetting::getInstance()->settings ?? config('loyalty');
+        $points = (int) data_get($settings, 'referral.registration_points', 0);
+
+        if (! data_get($settings, 'referral.enabled', true) || $points <= 0 || ! $user->referred_by_user_id) {
+            return;
+        }
+
+        DB::transaction(function () use ($settings, $points, $user): void {
+            $referrer = User::query()->with('client')->lockForUpdate()->find($user->referred_by_user_id);
+            $account = $referrer?->client?->loyaltyAccount()->lockForUpdate()->first();
+            if (! $account) {
+                return;
+            }
+
+            $ledger = PointLedger::query()->firstOrCreate(
+                ['idempotency_key' => "referral_registration:{$user->id}"],
+                [
+                    'loyalty_account_id' => $account->id,
+                    'type' => 'earn_bonus',
+                    'points' => $points,
+                    'remaining_points' => $points,
+                    'counts_for_tier' => false,
+                    'earned_at' => now(),
+                    'available_at' => now(),
+                    'expires_at' => now()->addMonths((int) data_get($settings, 'redemption.expiry_months', 24)),
+                    'notes' => 'Bonus referral saat registrasi',
+                    'created_at' => now(),
+                ],
+            );
+
+            if ($ledger->wasRecentlyCreated) {
+                $account->increment('points_balance', $points);
+            }
+        });
     }
 
     public function calculateBasePoints(int $netValueIdr): int
@@ -38,10 +79,10 @@ class LoyaltyService
         return DB::transaction(function () use ($order): ?LoyaltyAccount {
             $order = Order::query()->lockForUpdate()->findOrFail($order->id);
             if ($order->points_awarded_at || $order->points_skipped_reason) {
-                return $order->company_id ? $this->createAccount((int) $order->company_id) : null;
+                return $order->client_id ? $this->createAccount((int) $order->client_id) : null;
             }
 
-            $account = LoyaltyAccount::query()->where('company_id', $order->company_id)->lockForUpdate()->firstOrFail();
+            $account = LoyaltyAccount::query()->where('client_id', $order->client_id)->lockForUpdate()->firstOrFail();
             $netValue = max(0, (int) $order->goods_subtotal - (int) $order->discount_on_goods);
             $basePoints = $this->calculateBasePoints($netValue);
 
@@ -60,7 +101,7 @@ class LoyaltyService
             $expiresAt = now()->addMonths((int) config('loyalty.redemption.expiry_months', 24));
             $base = PointLedger::query()->firstOrCreate(
                 ['idempotency_key' => "earn_base:{$order->id}"],
-                ['loyalty_account_id' => $account->id, 'order_id' => $order->id, 'type' => 'earn_base', 'points' => $basePoints, 'remaining_points' => $basePoints, 'counts_for_tier' => true, 'earned_at' => now(), 'expires_at' => $expiresAt, 'created_at' => now()],
+                ['loyalty_account_id' => $account->id, 'order_id' => $order->id, 'type' => 'earn_base', 'points' => $basePoints, 'remaining_points' => $basePoints, 'counts_for_tier' => true, 'earned_at' => now(), 'available_at' => now()->addDays((int) config('loyalty.redemption.maturity_days', 7)), 'expires_at' => $expiresAt, 'created_at' => now()],
             );
 
             if ($base->wasRecentlyCreated) {
@@ -72,12 +113,14 @@ class LoyaltyService
             if ($bonusPoints > 0) {
                 $bonus = PointLedger::query()->firstOrCreate(
                     ['idempotency_key' => "earn_bonus:{$order->id}"],
-                    ['loyalty_account_id' => $account->id, 'order_id' => $order->id, 'type' => 'earn_bonus', 'points' => $bonusPoints, 'remaining_points' => $bonusPoints, 'counts_for_tier' => false, 'earned_at' => now(), 'expires_at' => $expiresAt, 'created_at' => now()],
+                    ['loyalty_account_id' => $account->id, 'order_id' => $order->id, 'type' => 'earn_bonus', 'points' => $bonusPoints, 'remaining_points' => $bonusPoints, 'counts_for_tier' => false, 'earned_at' => now(), 'available_at' => now()->addDays((int) config('loyalty.redemption.maturity_days', 7)), 'expires_at' => $expiresAt, 'created_at' => now()],
                 );
                 if ($bonus->wasRecentlyCreated) {
                     $account->increment('points_balance', $bonusPoints);
                 }
             }
+
+            $this->awardReferralBonus($order, $netValue);
 
             $order->update(['points_awarded_at' => now()]);
             $account->refresh();
@@ -87,15 +130,59 @@ class LoyaltyService
         });
     }
 
+    private function awardReferralBonus(Order $order, int $netValue): void
+    {
+        $settings = LoyaltySetting::getInstance()->settings ?? config('loyalty');
+        if (! data_get($settings, 'referral.enabled', true) || ! $order->referrer_user_id) {
+            return;
+        }
+
+        $amount = min(
+            (int) round($netValue * ((float) data_get($settings, 'referral.percent', 0.5)) / 100),
+            (int) data_get($settings, 'referral.max_idr', 500000),
+        );
+        $points = intdiv($amount, (int) data_get($settings, 'point_value_idr', 100));
+        if ($points <= 0) {
+            return;
+        }
+
+        $referrer = User::query()->with('client')->find($order->referrer_user_id);
+        $account = $referrer?->client?->loyaltyAccount()->lockForUpdate()->first();
+        if (! $account) {
+            return;
+        }
+
+        $ledger = PointLedger::query()->firstOrCreate(
+            ['idempotency_key' => "referral_bonus:{$order->id}"],
+            [
+                'loyalty_account_id' => $account->id,
+                'order_id' => $order->id,
+                'type' => 'earn_bonus',
+                'points' => $points,
+                'remaining_points' => $points,
+                'counts_for_tier' => false,
+                'earned_at' => now(),
+                'available_at' => now()->addDays((int) data_get($settings, 'redemption.return_days', 7)),
+                'expires_at' => now()->addMonths((int) data_get($settings, 'redemption.expiry_months', 24)),
+                'notes' => 'Bonus referral',
+                'created_at' => now(),
+            ],
+        );
+        if ($ledger->wasRecentlyCreated) {
+            $account->increment('points_balance', $points);
+            Notification::route('mail', $referrer->email)->notify((new \Modules\Email\Notifications\ReferralBonusNotification($order, $points))->afterCommit());
+        }
+    }
+
     public function reverseForOrder(Order $order): ?LoyaltyAccount
     {
         return DB::transaction(function () use ($order): ?LoyaltyAccount {
             $order = Order::query()->lockForUpdate()->findOrFail($order->id);
-            if (! $order->company_id) {
+            if (! $order->client_id) {
                 return null;
             }
 
-            $account = LoyaltyAccount::query()->where('company_id', $order->company_id)->lockForUpdate()->firstOrFail();
+            $account = LoyaltyAccount::query()->where('client_id', $order->client_id)->lockForUpdate()->firstOrFail();
             $earnings = PointLedger::query()->where('loyalty_account_id', $account->id)->where('order_id', $order->id)->whereIn('type', ['earn_base', 'earn_bonus', 'earn_review'])->lockForUpdate()->get();
             $basePoints = (int) $earnings->where('type', 'earn_base')->sum('points');
             $allPoints = (int) $earnings->sum('points');
@@ -124,7 +211,7 @@ class LoyaltyService
     public function awardForReview(ReviewStored $event): LoyaltyAccount
     {
         return DB::transaction(function () use ($event): LoyaltyAccount {
-            $account = LoyaltyAccount::query()->where('company_id', $event->companyId)->lockForUpdate()->firstOrFail();
+            $account = LoyaltyAccount::query()->where('client_id', $event->clientId)->lockForUpdate()->firstOrFail();
             $ledger = $account->pointLedger()->firstOrCreate(
                 ['idempotency_key' => "earn_review:{$event->reviewId}"],
                 [
@@ -135,6 +222,7 @@ class LoyaltyService
                     'remaining_points' => 50,
                     'counts_for_tier' => false,
                     'earned_at' => now(),
+                    'available_at' => now()->addDays((int) config('loyalty.redemption.maturity_days', 7)),
                     'expires_at' => now()->addMonths((int) config('loyalty.redemption.expiry_months', 24)),
                     'created_at' => now(),
                 ],
@@ -216,7 +304,7 @@ class LoyaltyService
 
     public function redeemablePoints(LoyaltyAccount $account, bool $includeMonthlyLimit = true): int
     {
-        $matured = PointLedger::query()->where('loyalty_account_id', $account->id)->whereIn('type', ['earn_base', 'earn_bonus', 'earn_review', 'adjustment'])->where('remaining_points', '>', 0)->where('earned_at', '<=', now()->subDays((int) config('loyalty.redemption.maturity_days', 30)))->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()))->sum('remaining_points');
+        $matured = $this->maturedLedgerQuery($account->id)->sum('remaining_points');
         if (! $includeMonthlyLimit) {
             return max(0, (int) $matured);
         }
@@ -232,10 +320,10 @@ class LoyaltyService
         abort_unless($user->company_role === 'admin', 403);
 
         return DB::transaction(function () use ($user, $data): array {
-            $account = LoyaltyAccount::query()->where('company_id', $user->company_id)->lockForUpdate()->firstOrFail();
+            $account = LoyaltyAccount::query()->where('client_id', $user->client_id)->lockForUpdate()->firstOrFail();
             $existing = $account->redemptions()->where('idempotency_key', $data['idempotency_key'])->first();
             if ($existing) {
-                return ['redemption' => $existing->load('voucher'), 'account' => $account->fresh()];
+                return ['redemption' => $existing->load('voucher'), 'account' => $account->fresh(), 'created' => false];
             }
 
             $type = $data['type'];
@@ -246,7 +334,7 @@ class LoyaltyService
             abort_if($this->redeemablePoints($account, $type === 'ewallet') < $points, 422, 'Poin belum matang atau kuota bulan ini tidak mencukupi.');
 
             $remaining = $points;
-            $matured = PointLedger::query()->where('loyalty_account_id', $account->id)->whereIn('type', ['earn_base', 'earn_bonus', 'earn_review', 'adjustment'])->where('remaining_points', '>', 0)->where('earned_at', '<=', now()->subDays((int) config('loyalty.redemption.maturity_days', 30)))->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()))->orderBy('earned_at')->lockForUpdate()->get();
+            $matured = $this->maturedLedgerQuery($account->id)->orderBy('earned_at')->lockForUpdate()->get();
             foreach ($matured as $ledger) {
                 if ($remaining <= 0) {
                     break;
@@ -273,7 +361,7 @@ class LoyaltyService
             $account->decrement('points_balance', $points);
             $account->pointLedger()->create(['type' => $type === 'ewallet' ? 'redeem_ewallet' : 'redeem_voucher', 'points' => -$points, 'counts_for_tier' => false, 'earned_at' => now(), 'created_at' => now(), 'idempotency_key' => "{$type}:{$data['idempotency_key']}"]);
 
-            return ['redemption' => $redemption->load('voucher'), 'account' => $account->fresh()];
+            return ['redemption' => $redemption->load('voucher'), 'account' => $account->fresh(), 'created' => true];
         });
     }
 
@@ -304,6 +392,7 @@ class LoyaltyService
                 'remaining_points' => max(0, $points),
                 'counts_for_tier' => false,
                 'earned_at' => now(),
+                'available_at' => $points > 0 ? now()->addDays((int) config('loyalty.redemption.maturity_days', 7)) : null,
                 'expires_at' => $points > 0 ? now()->addMonths((int) config('loyalty.redemption.expiry_months', 24)) : null,
                 'idempotency_key' => 'adjustment:'.Str::uuid()->toString(),
                 'notes' => $reason.($actorId ? " (actor {$actorId})" : ''),
@@ -311,6 +400,21 @@ class LoyaltyService
             $account->increment('points_balance', $points);
 
             return $ledger;
+        });
+    }
+
+    public function releaseLedger(PointLedger $ledger, ?int $actorId = null): PointLedger
+    {
+        return DB::transaction(function () use ($ledger, $actorId): PointLedger {
+            $ledger = PointLedger::query()->lockForUpdate()->findOrFail($ledger->id);
+            abort_if($ledger->points <= 0 || $ledger->remaining_points <= 0, 422, 'Ledger ini tidak memiliki poin yang bisa dilepas.');
+
+            $ledger->update([
+                'available_at' => now(),
+                'notes' => trim(($ledger->notes ? $ledger->notes.' ' : '').'Released by admin'.($actorId ? " ({$actorId})" : '').'.'),
+            ]);
+
+            return $ledger->fresh();
         });
     }
 
@@ -322,7 +426,10 @@ class LoyaltyService
         }
 
         $tier = $account->current_tier->value;
-        $tiers = config('loyalty.tiers');
+        $settings = LoyaltySetting::getInstance()->settings ?? config('loyalty');
+        $tiers = data_get($settings, 'tiers', config('loyalty.tiers', []));
+        $redemption = data_get($settings, 'redemption', config('loyalty.redemption', []));
+        $pointValue = (int) data_get($settings, 'point_value_idr', config('loyalty.point_value_idr', 100));
         $next = collect($tiers)->keys()->skipWhile(fn (string $key): bool => $key !== $tier)->skip(1)->first();
 
         return [
@@ -330,10 +437,18 @@ class LoyaltyService
             'tier_valid_until' => $account->tier_valid_until?->toDateString(),
             'tier_points' => $account->tier_points,
             'points_balance' => $account->points_balance,
-            'balance_value_idr' => $account->points_balance * (int) config('loyalty.point_value_idr', 100),
+            'balance_value_idr' => $account->points_balance * $pointValue,
             'redeemable_points' => $this->redeemablePoints($account),
+            'redeemable_voucher_points' => $this->redeemablePoints($account, false),
+            'redemption_ewallet_points' => array_values(data_get($redemption, 'ewallet_points', [500, 1000, 2500])),
+            'redemption_voucher_points' => array_values(data_get($redemption, 'voucher_points', [750, 1500, 3000])),
+            'voucher_validity_days' => (int) data_get($redemption, 'voucher_validity_days', 30),
+            'voucher_min_order_per_point_idr' => (int) data_get($redemption, 'voucher_min_order_per_point_idr', 1000),
+            'point_value_idr' => $pointValue,
+            'redemption_maturity_days' => (int) data_get($redemption, 'maturity_days', 7),
+            'loyalty_tiers' => collect($tiers)->map(fn (array $tier, string $id): array => [...$tier, 'id' => $id])->values()->all(),
             'next_tier' => $next,
-            'remaining_spend_idr' => $next ? max(0, ($tiers[$next]['min'] - $account->tier_points) * (int) config('loyalty.spend_per_point_idr', 10000)) : 0,
+            'remaining_spend_idr' => $next ? max(0, ($tiers[$next]['min'] - $account->tier_points) * (int) data_get($settings, 'spend_per_point_idr', 10000)) : 0,
             'can_redeem' => $user->company_role === 'admin',
             'ewallet_paid_total_idr' => $account->redemptions()->where('type', 'ewallet')->where('status', 'paid')->sum('amount_idr'),
         ];
@@ -342,6 +457,24 @@ class LoyaltyService
     private function bonusPercent(LoyaltyTier $tier): int
     {
         return (int) config("loyalty.tiers.{$tier->value}.bonus_percent", 0);
+    }
+
+    private function maturedLedgerQuery(int $accountId): Builder
+    {
+        return PointLedger::query()
+            ->where('loyalty_account_id', $accountId)
+            ->whereIn('type', ['earn_base', 'earn_bonus', 'earn_review', 'adjustment'])
+            ->where('remaining_points', '>', 0)
+            ->where(function (Builder $query): void {
+                $query
+                    ->where(function (Builder $query): void {
+                        $query->whereNotNull('available_at')->where('available_at', '<=', now());
+                    })
+                    ->orWhere(function (Builder $query): void {
+                        $query->whereNull('available_at')->where('earned_at', '<=', now()->subDays((int) config('loyalty.redemption.maturity_days', 7)));
+                    });
+            })
+            ->where(fn (Builder $query): Builder => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()));
     }
 
     private function checkAndUpgradeTier(LoyaltyAccount $account): void

@@ -15,7 +15,7 @@ class Cart extends Model
 {
     use HasFactory;
     protected static function newFactory(): CartFactory { return CartFactory::new(); }
-    protected $fillable = ['user_id', 'session_id', 'promo_code_id', 'voucher_id'];
+    protected $fillable = ['user_id', 'session_id', 'promo_code_id', 'voucher_id', 'referral_code'];
     public function user(): BelongsTo { return $this->belongsTo(User::class); }
     public function promoCode(): BelongsTo { return $this->belongsTo(PromoCode::class); }
     public function voucher(): BelongsTo { return $this->belongsTo(Voucher::class); }

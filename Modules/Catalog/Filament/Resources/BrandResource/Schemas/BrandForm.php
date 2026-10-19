@@ -4,18 +4,25 @@ namespace Modules\Catalog\Filament\Resources\BrandResource\Schemas;
 
 use Filament\Forms;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Group;
+use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Modules\Catalog\Filament\Resources\BrandResource\Pages;
 use Modules\Catalog\Models\Brand;
+use Modules\SEO\Filament\Resources\SeoMetaResource\Schemas\SeoForm;
 
 class BrandForm
 {
     public static function schema(Schema $form): Schema
         {
             return $form->schema([
+                Tabs::make('BrandTabs')
+                    ->tabs([
+                        Tabs\Tab::make('Brand Details')
+                            ->schema([
                 Section::make()->schema([
                     Forms\Components\TextInput::make('name')
                         ->required()
@@ -34,6 +41,12 @@ class BrandForm
                         ->maxLength(500)
                         ->columnSpanFull(),
                 ])->columns(2),
+                            ]),
+                        Tabs\Tab::make('SEO')->schema([
+                            Group::make()->relationship('seo')->schema(SeoForm::schema()),
+                        ]),
+                    ])
+                    ->columnSpanFull(),
             ]);
         }
 }

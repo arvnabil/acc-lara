@@ -21,9 +21,9 @@ class IssueTierBenefitsJob implements ShouldQueue
         $month = $now->format('Y-m');
         $slots = ['classic' => 1, 'bronze' => 1, 'silver' => 2, 'gold' => 4, 'platinum' => 4, 'diamond' => 4];
 
-        LoyaltyAccount::query()->with('company')->each(function (LoyaltyAccount $account) use ($vouchers, $now, $quarter, $month, $slots): void {
+        LoyaltyAccount::query()->with('client')->each(function (LoyaltyAccount $account) use ($vouchers, $now, $quarter, $month, $slots): void {
             $tier = $account->current_tier->value;
-            if (in_array($tier, ['bronze', 'silver', 'gold', 'platinum', 'diamond'], true) && in_array($now->month, [1, 4, 7, 10], true) && ! $account->company->vouchers()->where('source', 'tier_bronze')->where('quarter_key', $quarter)->exists()) {
+            if (in_array($tier, ['bronze', 'silver', 'gold', 'platinum', 'diamond'], true) && in_array($now->month, [1, 4, 7, 10], true) && ! $account->client->vouchers()->where('source', 'tier_bronze')->where('quarter_key', $quarter)->exists()) {
                 $vouchers->createBronzeVoucher($account);
             }
             $subsidy = config("loyalty.shipping_subsidy_idr.{$tier}");
@@ -32,10 +32,12 @@ class IssueTierBenefitsJob implements ShouldQueue
                 return;
             }
             for ($slot = 1; $slot <= $count; $slot++) {
-                if (! $account->company->vouchers()->where('source', 'free_shipping')->where('month_key', $month)->where('slot', $slot)->exists()) {
+                if (! $account->client->vouchers()->where('source', 'free_shipping')->where('month_key', $month)->where('slot', $slot)->exists()) {
                     $vouchers->createFreeShippingVoucher($account, $slot, (int) $subsidy);
                 }
             }
         });
     }
 }
+
+

@@ -27,10 +27,10 @@ class ReviewController extends Controller
         ]);
 
         $item = OrderItem::query()->with('order')->findOrFail($validated['order_item_id']);
-        abort_unless($item->order->company_id === $request->user()->company_id, 403);
+        abort_unless($item->order->client_id === $request->user()->client_id, 403);
         abort_unless($item->order->status->value === 'completed', 422, 'Ulasan hanya dapat dibuat untuk pesanan yang selesai.');
 
-        if (Review::query()->where('company_id', $request->user()->company_id)->where('product_id', $item->product_id)->exists()) {
+        if (Review::query()->where('client_id', $request->user()->client_id)->where('product_id', $item->product_id)->exists()) {
             throw ValidationException::withMessages(['order_item_id' => 'Produk ini sudah diulas oleh perusahaan Anda.']);
         }
 
@@ -44,7 +44,7 @@ class ReviewController extends Controller
             }
 
             $review = DB::transaction(function () use ($validated, $request, $item, $paths): Review {
-                if (Review::query()->where('company_id', $request->user()->company_id)->where('product_id', $item->product_id)->lockForUpdate()->exists()) {
+                if (Review::query()->where('client_id', $request->user()->client_id)->where('product_id', $item->product_id)->lockForUpdate()->exists()) {
                     throw ValidationException::withMessages(['order_item_id' => 'Produk ini sudah diulas oleh perusahaan Anda.']);
                 }
 
@@ -53,14 +53,14 @@ class ReviewController extends Controller
                     'order_item_id' => $item->id,
                     'product_id' => $item->product_id,
                     'user_id' => $request->user()->id,
-                    'company_id' => $request->user()->company_id,
+                    'client_id' => $request->user()->client_id,
                     'rating' => $validated['rating'],
                     'body' => $validated['body'],
                     'is_anonymous' => (bool) ($validated['is_anonymous'] ?? false),
                     'media' => $paths ?: null,
                 ]);
 
-                event(new ReviewStored($review->id, $review->company_id, $review->user_id, $review->product_id, $review->order_id));
+                event(new ReviewStored($review->id, $review->client_id, $review->user_id, $review->product_id, $review->order_id));
 
                 return $review;
             });
@@ -75,3 +75,5 @@ class ReviewController extends Controller
         return back()->with('success', 'Ulasan Anda berhasil dikirim! Bonus +50 Poin ditambahkan ke akun Anda.');
     }
 }
+
+

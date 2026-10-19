@@ -16,7 +16,7 @@ class ReviewTable
     public static function table(Table $table): Table
         {
             return $table->columns([
-                Tables\Columns\TextColumn::make('product.name')->searchable(), Tables\Columns\TextColumn::make('company.name')->label('Company'),
+            Tables\Columns\TextColumn::make('product.name')->searchable(), Tables\Columns\TextColumn::make('client.name')->label('Client'),
                 Tables\Columns\TextColumn::make('rating')->numeric(), Tables\Columns\TextColumn::make('body')->limit(60),
                 Tables\Columns\IconColumn::make('is_approved')->boolean(), Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
             ])->filters([
@@ -30,5 +30,7 @@ class ReviewTable
             ])->defaultSort('created_at', 'desc');
         }
 }
+
+
 
 

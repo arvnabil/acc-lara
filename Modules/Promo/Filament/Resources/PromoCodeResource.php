@@ -18,7 +18,7 @@ class PromoCodeResource extends Resource
 {
     protected static ?string $model = PromoCode::class;
     protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-ticket';
-    protected static string | \UnitEnum | null $navigationGroup = 'Promo';
+    protected static string | \UnitEnum | null $navigationGroup = 'Loyalty';
     protected static ?int $navigationSort = 10;
 
     public static function form(Schema $form): Schema

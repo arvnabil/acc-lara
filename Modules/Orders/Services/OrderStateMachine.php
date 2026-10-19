@@ -10,6 +10,8 @@ use Modules\Orders\Models\Order;
 use Modules\Orders\Models\OrderStatusHistory;
 use Modules\Orders\Events\OrderReturned;
 use Modules\Promo\Models\PromoCode;
+use Modules\Email\Services\EmailNotificationService;
+use Modules\Loyalty\Jobs\ProcessOrderPointsJob;
 
 class OrderStateMachine
 {
@@ -56,6 +58,29 @@ class OrderStateMachine
             if ($to === OrderStatus::Returned) {
                 Event::dispatch(new OrderReturned($order));
             }
+
+            $updatedOrder = $order->fresh();
+            DB::afterCommit(function () use ($updatedOrder): void {
+                app(EmailNotificationService::class)->orderStatusChanged($updatedOrder);
+
+                if ($updatedOrder->status === OrderStatus::Completed) {
+                    ProcessOrderPointsJob::dispatch($updatedOrder->id);
+                }
+            });
+
+            return $updatedOrder;
+        });
+    }
+
+    /** @param array<string, mixed> $attributes */
+    public function systemTransition(Order $order, OrderStatus $to, array $attributes = [], string $reason = 'system'): Order
+    {
+        return DB::transaction(function () use ($order, $to, $attributes, $reason): Order {
+            $from = $order->status->value;
+            abort_unless($to === OrderStatus::Paid && $from === OrderStatus::PendingPayment->value, 422, "Transisi sistem {$from} ke {$to->value} tidak valid.");
+
+            $order->update([...$attributes, 'status' => $to]);
+            $order->statusHistory()->create(['from_status' => $from, 'to_status' => $to->value, 'actor_id' => null, 'notes' => $reason, 'created_at' => now()]);
 
             return $order->fresh();
         });

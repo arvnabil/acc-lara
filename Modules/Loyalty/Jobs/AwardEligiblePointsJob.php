@@ -19,9 +19,9 @@ class AwardEligiblePointsJob implements ShouldQueue
             ->where('status', OrderStatus::Completed)
             ->where(function ($query): void {
                 $query->where(function ($query): void {
-                    $query->where('payment_type', 'direct')->where('completed_at', '<=', now()->subDays((int) config('loyalty.redemption.return_days', 7)));
+                    $query->where('payment_type', 'direct');
                 })->orWhere(function ($query): void {
-                    $query->where('payment_type', 'net')->where('invoice_paid_at', '<=', now()->subDays((int) config('loyalty.redemption.return_days', 7)));
+                    $query->where('payment_type', 'net')->whereNotNull('invoice_paid_at');
                 });
             })
             ->whereNull('points_awarded_at')

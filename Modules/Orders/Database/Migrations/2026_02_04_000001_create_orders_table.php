@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->string('number', 20)->unique();
             $table->unsignedBigInteger('user_id');
-            $table->unsignedBigInteger('company_id');
+            $table->unsignedBigInteger('client_id');
             $table->enum('status', ['pending_payment', 'awaiting_verification', 'paid', 'processing', 'packed', 'shipped', 'completed', 'returned', 'cancelled'])->default('pending_payment');
             $table->string('payment_type', 20)->default('direct');
             $table->unsignedTinyInteger('net_days')->nullable();
@@ -41,10 +41,10 @@ return new class extends Migration
             $table->timestamps();
             $table->index('status', 'idx_status');
             $table->index('user_id', 'idx_user_id');
-            $table->index('company_id', 'idx_company_id');
+            $table->index('client_id', 'idx_client_id');
             $table->index('points_awarded_at', 'idx_points_awarded_at');
             $table->foreign('user_id')->references('id')->on('users')->restrictOnDelete();
-            $table->foreign('company_id')->references('id')->on('companies')->restrictOnDelete();
+            $table->foreign('client_id')->references('id')->on('clients')->restrictOnDelete();
             $table->foreign('promo_code_id')->references('id')->on('promo_codes')->restrictOnDelete();
             $table->foreign('voucher_id')->references('id')->on('vouchers')->restrictOnDelete();
         });
@@ -105,3 +105,5 @@ return new class extends Migration
         Schema::dropIfExists('orders');
     }
 };
+
+

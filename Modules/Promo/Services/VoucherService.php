@@ -3,7 +3,7 @@
 namespace Modules\Promo\Services;
 
 use Illuminate\Support\Str;
-use Modules\Accounts\Models\Company;
+use Modules\Clients\Models\Client;
 use Modules\Loyalty\Models\LoyaltyAccount;
 use Modules\Promo\Models\Voucher;
 
@@ -11,16 +11,21 @@ class VoucherService
 {
     public function createRedemptionVoucher(LoyaltyAccount $account, int $points): Voucher
     {
+        $pointValue = (int) config('loyalty.point_value_idr', 100);
+        $minOrderPerPoint = (int) config('loyalty.redemption.voucher_min_order_per_point_idr', 1000);
+        $validityDays = (int) config('loyalty.redemption.voucher_validity_days', 30);
+        $discount = $points * $pointValue;
+
         return Voucher::create([
             'code' => $this->uniqueCode('VC'),
-            'title' => 'Voucher Loyalty Rp '.number_format($points * 100, 0, ',', '.'),
+            'title' => 'Voucher Loyalty Rp '.number_format($discount, 0, ',', '.'),
             'type' => 'fixed',
-            'discount_value' => $points * 100,
-            'min_order' => $points * 1000,
-            'company_id' => $account->company_id,
+            'discount_value' => $discount,
+            'min_order' => $points * $minOrderPerPoint,
+            'client_id' => $account->client_id,
             'source' => 'redeem',
             'points_cost' => $points,
-            'expires_at' => now()->addDays(90),
+            'expires_at' => now()->addDays($validityDays),
         ]);
     }
 
@@ -36,7 +41,7 @@ class VoucherService
             'type' => 'fixed',
             'discount_value' => 25000,
             'min_order' => 250000,
-            'company_id' => $account->company_id,
+            'client_id' => $account->client_id,
             'source' => 'tier_bronze',
             'points_cost' => null,
             'quarter_key' => now()->format('Y').'Q'.now()->quarter,
@@ -56,7 +61,7 @@ class VoucherService
             'type' => 'free_shipping',
             'discount_value' => $subsidy,
             'min_order' => 0,
-            'company_id' => $account->company_id,
+            'client_id' => $account->client_id,
             'source' => 'free_shipping',
             'month_key' => now()->format('Y-m'),
             'slot' => $slot,
@@ -73,3 +78,7 @@ class VoucherService
         return $code;
     }
 }
+
+
+
+

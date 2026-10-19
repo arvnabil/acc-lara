@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Storage;
-use Modules\Accounts\Models\Company;
+use Modules\Clients\Models\Client;
 use Modules\Catalog\Models\Product;
 use Modules\Orders\Models\Order;
 use Modules\Orders\Models\OrderItem;
@@ -22,7 +22,7 @@ class Review extends Model
         return ReviewFactory::new();
     }
 
-    protected $fillable = ['order_id', 'order_item_id', 'product_id', 'user_id', 'company_id', 'rating', 'body', 'is_approved', 'is_anonymous', 'media'];
+    protected $fillable = ['order_id', 'order_item_id', 'product_id', 'user_id', 'client_id', 'rating', 'body', 'is_approved', 'is_anonymous', 'media'];
 
     protected $casts = ['is_approved' => 'boolean', 'is_anonymous' => 'boolean', 'media' => 'array'];
 
@@ -57,8 +57,12 @@ class Review extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function company(): BelongsTo
+    public function client(): BelongsTo
     {
-        return $this->belongsTo(Company::class);
+        return $this->belongsTo(Client::class);
     }
 }
+
+
+
+

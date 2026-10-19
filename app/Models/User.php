@@ -19,9 +19,11 @@ use Modules\Orders\Models\PaymentProof;
 use Modules\Review\Models\Review;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Modules\Accounts\Models\Address;
-use Modules\Accounts\Models\Company;
+use Modules\Clients\Models\Address;
+use Modules\Clients\Models\Client;
 use Spatie\Permission\Traits\HasRoles;
+use Modules\Email\Models\EmailSetting;
+use Modules\Email\Notifications\PasswordResetNotification;
 
 class User extends Authenticatable implements FilamentUser, HasAppAuthentication, HasAppAuthenticationRecovery
 {
@@ -38,8 +40,9 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
         'email',
         'password',
         'phone',
-        'company_id',
+        'client_id',
         'company_role',
+        'referral_code', 'referred_by_user_id',
     ];
 
     /**
@@ -74,9 +77,14 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
         return $this->can('access_panel');
     }
 
-    public function company(): BelongsTo
+    public function client(): BelongsTo
     {
-        return $this->belongsTo(Company::class);
+        return $this->belongsTo(Client::class);
+    }
+
+    public function referredBy(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'referred_by_user_id');
     }
 
     public function addresses(): HasMany
@@ -89,4 +97,14 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     public function orders(): HasMany { return $this->hasMany(Order::class); }
     public function paymentProofs(): HasMany { return $this->hasMany(PaymentProof::class, 'verified_by'); }
     public function reviews(): HasMany { return $this->hasMany(Review::class); }
+
+    public function sendPasswordResetNotification($token): void
+    {
+        if (EmailSetting::getInstance()->password_reset_enabled) {
+            $this->notify(new PasswordResetNotification($token));
+        }
+    }
 }
+
+
+

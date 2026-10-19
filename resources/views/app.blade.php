@@ -12,6 +12,12 @@
         <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
         <meta name="csrf-token" content="{{ csrf_token() }}">
+        @php
+            $initialSeoSchema = data_get($page ?? [], 'props.seo.schema');
+        @endphp
+        @if (is_array($initialSeoSchema) && $initialSeoSchema !== [])
+            <script data-inertia="jsonld" type="application/ld+json">@json($initialSeoSchema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)</script>
+        @endif
         @viteReactRefresh
         @vite(['resources/css/app.css', 'resources/js/app.jsx'])
         @inertiaHead

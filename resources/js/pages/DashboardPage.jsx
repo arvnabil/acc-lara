@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link, useLocation } from '../compat/router';
+import { useNavigate, Link, useLocation, useSearchParams } from '../compat/router';
 import { router } from '../compat/router';
 import { useAuth } from '../compat/context';
+import { useToast } from '../compat/context';
 import { useWishlist } from '../compat/context';
 import InvoiceModal from '../components/InvoiceModal';
 import ReviewModal from '../components/ReviewModal';
+import ShippingTrackingModal from '../components/ShippingTrackingModal';
+import OrderDetailModal from '../components/OrderDetailModal';
 import { clearPageCache } from '../pwa';
+import AddressLocationPicker from '../components/AddressLocationPicker';
 
 export default function DashboardPage() {
   const { 
@@ -16,11 +20,97 @@ export default function DashboardPage() {
     setDefaultAddress 
   } = useAuth();
   const { wishlist } = useWishlist();
+  const { showToast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
+  const copyReferralCode = async () => {
+    if (!user?.referral_code) {
+      return;
+    }
+
+    try {
+      if (!navigator.clipboard?.writeText) {
+        throw new Error('Clipboard API tidak tersedia.');
+      }
+
+      await navigator.clipboard.writeText(user.referral_code);
+      showToast({
+        title: 'Kode referral disalin',
+        message: 'Kode referral berhasil disalin ke clipboard.',
+        type: 'success',
+      });
+    } catch {
+      showToast({
+        title: 'Gagal menyalin kode referral',
+        message: 'Silakan salin kode referral secara manual.',
+        type: 'error',
+      });
+    }
+  };
+  const copyReferralLink = async () => {
+    if (!user?.referral_code) {
+      return;
+    }
+
+    try {
+      if (!navigator.clipboard?.writeText) {
+        throw new Error('Clipboard API tidak tersedia.');
+      }
+
+      const referralLink = `${window.location.origin}/register?referral=${encodeURIComponent(user.referral_code)}`;
+      await navigator.clipboard.writeText(referralLink);
+      showToast({
+        title: 'Link referral disalin',
+        message: 'Link referral berhasil disalin ke clipboard.',
+        type: 'success',
+      });
+    } catch {
+      showToast({
+        title: 'Gagal menyalin link referral',
+        message: 'Silakan salin kode referral secara manual.',
+        type: 'error',
+      });
+    }
+  };
+  const ewalletPackages = (Array.isArray(user?.redemption_ewallet_points) ? user.redemption_ewallet_points : [])
+    .map(Number)
+    .filter((points) => points > 0)
+    .filter((points, index, values) => values.indexOf(points) === index)
+    .sort((first, second) => first - second)
+    .map((points) => ({
+      points,
+      rupiah: points * 100,
+      label: `${points.toLocaleString('id-ID')} Poin`,
+    }));
+  const voucherPointValue = Number(user?.point_value_idr || 100);
+  const voucherValidityDays = Number(user?.voucher_validity_days || 30);
+  const voucherMinOrderPerPoint = Number(user?.voucher_min_order_per_point_idr || 1000);
+  const redeemableVoucherPoints = Number(user?.redeemable_voucher_points ?? 0);
+  const voucherPackages = (Array.isArray(user?.redemption_voucher_points) ? user.redemption_voucher_points : [])
+    .map(Number)
+    .filter((points) => points > 0)
+    .filter((points, index, values) => values.indexOf(points) === index)
+    .sort((first, second) => first - second)
+    .map((points, index) => ({
+      points,
+      discount: points * voucherPointValue,
+      minOrder: points * voucherMinOrderPerPoint,
+      label: `VOUCHER ${(points * voucherPointValue / 1000).toLocaleString('id-ID')}K`,
+      validityDays: voucherValidityDays,
+      tone: ['amber', 'blue', 'purple'][index % 3],
+    }));
 
   // Active Tab state: 'dashboard', 'orders', 'addresses', 'vouchers', 'wishlist', 'points', 'reviews'
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const accountTabs = ['dashboard', 'orders', 'addresses', 'vouchers', 'wishlist', 'points', 'reviews'];
+  const requestedTab = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(accountTabs.includes(requestedTab) ? requestedTab : 'dashboard');
+
+  function changeAccountTab(tab) {
+    setActiveTab(tab);
+    setFeedback(null);
+    setSearchParams(tab === 'dashboard' ? new URLSearchParams() : new URLSearchParams({ tab }));
+  }
   
   // Redeem state feedback
   const [feedback, setFeedback] = useState(null);
@@ -29,6 +119,13 @@ export default function DashboardPage() {
   // Invoice Modal State
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [selectedShippingOrder, setSelectedShippingOrder] = useState(null);
+  const [showShippingModal, setShowShippingModal] = useState(false);
+  const [selectedDetailOrder, setSelectedDetailOrder] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [invoiceOrder, setInvoiceOrder] = useState(null);
+  const [isSubmittingInvoice, setIsSubmittingInvoice] = useState(false);
+  const [taxForm, setTaxForm] = useState({ taxProfileId: '', label: 'Perusahaan', npwp: '', taxpayerName: user?.name || '', taxpayerAddress: '', document: null });
 
   // Review Modal & Sub-tab State
   const [reviewModalData, setReviewModalData] = useState(null);
@@ -40,12 +137,12 @@ export default function DashboardPage() {
   const [ewalletPlatform, setEwalletPlatform] = useState('GoPay');
   const [ewalletPhone, setEwalletPhone] = useState(user?.phone || '0812-3456-7890');
   const [ewalletAccountName, setEwalletAccountName] = useState(user?.name || 'John Doe');
-  const [selectedEwalletPackage, setSelectedEwalletPackage] = useState({ points: 500, rupiah: 50000 });
+  const [selectedEwalletPackage, setSelectedEwalletPackage] = useState(ewalletPackages[0] || { points: 0, rupiah: 0, label: '0 Poin' });
   const [ewalletFeedback, setEwalletFeedback] = useState(null);
 
   // Loyalty Banner State
   const [showLoyaltyInfo, setShowLoyaltyInfo] = useState(false);
-  const LOYALTY_LEVELS = [
+  const DEFAULT_LOYALTY_LEVELS = [
     { 
       id: 'classic',   
       label: 'Classic',   
@@ -159,6 +256,20 @@ export default function DashboardPage() {
       ] 
     },
   ];
+  const LOYALTY_LEVELS = (user?.loyalty_tiers?.length ? user.loyalty_tiers : DEFAULT_LOYALTY_LEVELS).map((tier, index) => {
+    const fallback = DEFAULT_LOYALTY_LEVELS.find((item) => item.id === tier.id) || DEFAULT_LOYALTY_LEVELS[index] || DEFAULT_LOYALTY_LEVELS[0];
+    return {
+      ...fallback,
+      ...tier,
+      label: tier.label || tier.id?.replace(/(^|_)(\w)/g, (_, separator, character) => character.toUpperCase()),
+      minPoints: Number(tier.min ?? tier.minPoints ?? fallback.minPoints),
+      maxPoints: tier.max === null ? null : Number(tier.max ?? tier.maxPoints ?? fallback.maxPoints),
+      spendMin: Number(tier.spend_min ?? tier.spendMin ?? fallback.spendMin),
+      spendMax: tier.spend_max === null ? null : Number(tier.spend_max ?? tier.spendMax ?? fallback.spendMax),
+      bonusPercent: Number(tier.bonus_percent ?? tier.bonusPercent ?? fallback.bonusPercent ?? 0),
+      perks: Array.isArray(tier.perks) && tier.perks.length > 0 ? tier.perks : fallback.perks,
+    };
+  });
   // Revisi 3: Pemisahan data poin & sumber level aktif
   const pointsBalance = user?.points_balance ?? 0; // Saldo reward aktif (spendable)
   const tierPoints = user?.tier_points ?? 0; // Poin kualifikasi tier tahun berjalan
@@ -166,25 +277,13 @@ export default function DashboardPage() {
   const tierLower = currentTierName.toLowerCase();
 
   // Status badge & perks aktif dibaca dari current_tier (Revisi 3), bukan dihitung ulang dari tier_points
-  let currentLevelIndex = 0;
-  if (tierLower.includes('diamond')) {
-    currentLevelIndex = 5;
-  } else if (tierLower.includes('platinum')) {
-    currentLevelIndex = 4;
-  } else if (tierLower.includes('gold')) {
-    currentLevelIndex = 3;
-  } else if (tierLower.includes('silver')) {
-    currentLevelIndex = 2;
-  } else if (tierLower.includes('bronze')) {
-    currentLevelIndex = 1;
-  } else {
-    currentLevelIndex = 0;
-  }
+  const currentLevelIndex = Math.max(0, LOYALTY_LEVELS.findIndex((level) => level.id === tierLower));
 
   // Revisi 3: Pemisahan "Nilai Saldo" vs "Dapat Ditukar Sekarang"
   const nilaiSaldoRupiah = user?.balance_value_idr ?? 0;
   const canRedeemNowPoints = user?.redeemable_points ?? 0;
   const canRedeemNowRupiah = canRedeemNowPoints * 100;
+  const pendingPoints = Math.max(0, pointsBalance - canRedeemNowPoints);
 
   const [activeLoyaltyIdx, setActiveLoyaltyIdx] = useState(currentLevelIndex);
 
@@ -200,7 +299,16 @@ export default function DashboardPage() {
     recipientName: '',
     phone: '',
     province: 'DKI Jakarta',
+    provinceId: null,
+    provinceName: '',
     city: 'Jakarta Selatan',
+    cityId: null,
+    cityName: '',
+    districtId: null,
+    districtName: '',
+    subdistrictId: null,
+    subdistrictName: '',
+    destinationId: null,
     address: '',
     postalCode: '',
     isDefault: false
@@ -236,6 +344,43 @@ export default function DashboardPage() {
     navigate('/');
   }
 
+  function openInvoiceRequest(order) {
+    const defaultProfile = (user.taxProfiles || []).find((profile) => profile.isDefault) || user.taxProfiles?.[0];
+    setInvoiceOrder(order);
+    setTaxForm({
+      taxProfileId: defaultProfile?.id ? String(defaultProfile.id) : '',
+      label: 'Perusahaan',
+      npwp: defaultProfile?.npwp || '',
+      taxpayerName: defaultProfile?.taxpayerName || user.name || '',
+      taxpayerAddress: defaultProfile?.taxpayerAddress || '',
+      document: null,
+    });
+  }
+
+  function submitInvoiceRequest(event) {
+    event.preventDefault();
+    if (isSubmittingInvoice) return;
+    setIsSubmittingInvoice(true);
+    const data = new FormData();
+    if (taxForm.taxProfileId) data.append('tax_profile_id', taxForm.taxProfileId);
+    data.append('label', taxForm.label);
+    data.append('npwp', taxForm.npwp);
+    data.append('taxpayer_name', taxForm.taxpayerName);
+    data.append('taxpayer_address', taxForm.taxpayerAddress);
+    if (taxForm.document) data.append('npwp_document', taxForm.document);
+    const url = `/akun/pesanan/${invoiceOrder.number || invoiceOrder.id}/faktur`;
+    router.post(url, data, {
+      forceFormData: true,
+      preserveScroll: true,
+      onSuccess: () => {
+        setInvoiceOrder(null);
+        showToast({ title: 'Request faktur berhasil', message: 'Permintaan faktur pajak sudah dikirim ke admin.', type: 'success' });
+      },
+      onError: () => showToast({ title: 'Request faktur gagal', message: 'Periksa kembali data NPWP dan dokumen yang diunggah.', type: 'error' }),
+      onFinish: () => setIsSubmittingInvoice(false),
+    });
+  }
+
   // Point redemption actions
   function handleRedeemWallet(points, rupiah) {
     router.post('/loyalty/redeem', { type: 'ewallet', points, provider: ewalletPlatform, account: ewalletPhone, account_name: ewalletAccountName, idempotency_key: crypto.randomUUID() }, {
@@ -259,7 +404,16 @@ export default function DashboardPage() {
       recipientName: user?.name || '',
       phone: user?.phone || '',
       province: 'DKI Jakarta',
+      provinceId: null,
+      provinceName: '',
       city: 'Jakarta Selatan',
+      cityId: null,
+      cityName: '',
+      districtId: null,
+      districtName: '',
+      subdistrictId: null,
+      subdistrictName: '',
+      destinationId: null,
       address: '',
       postalCode: '',
       isDefault: (user?.addresses || []).length === 0
@@ -274,7 +428,16 @@ export default function DashboardPage() {
       recipientName: addr.recipientName || '',
       phone: addr.phone || '',
       province: addr.province || 'DKI Jakarta',
+      provinceId: addr.provinceId || null,
+      provinceName: addr.provinceName || '',
       city: addr.city || 'Jakarta Selatan',
+      cityId: addr.cityId || null,
+      cityName: addr.cityName || '',
+      districtId: addr.districtId || null,
+      districtName: addr.districtName || '',
+      subdistrictId: addr.subdistrictId || null,
+      subdistrictName: addr.subdistrictName || '',
+      destinationId: addr.destinationId || null,
       address: addr.address || '',
       postalCode: addr.postalCode || '',
       isDefault: !!addr.isDefault
@@ -284,18 +447,21 @@ export default function DashboardPage() {
 
   function handleSaveAddress(e) {
     e.preventDefault();
-    if (!addrForm.recipientName.trim() || !addrForm.phone.trim() || !addrForm.city.trim() || !addrForm.address.trim() || !addrForm.postalCode.trim()) {
-      setFeedback({ type: 'error', message: 'Mohon lengkapi nama penerima, nomor telepon, kota, alamat lengkap, dan kode pos.' });
+    if (!addrForm.recipientName.trim() || !addrForm.phone.trim() || !addrForm.province.trim() || !addrForm.city.trim() || !addrForm.districtName.trim() || !addrForm.subdistrictName.trim() || !addrForm.address.trim() || !addrForm.postalCode.trim()) {
+      setFeedback({ type: 'error', message: 'Mohon lengkapi nama penerima, telepon, provinsi, kabupaten/kota, kecamatan, kelurahan/desa, alamat, dan kode pos.' });
       return;
     }
     saveAddress({
       ...(editingAddress ? { id: editingAddress.id } : {}),
       ...addrForm
-    });
-    setShowAddressModal(false);
-    setFeedback({
-      type: 'success',
-      message: editingAddress ? 'Alamat berhasil diperbarui!' : 'Alamat baru berhasil ditambahkan!'
+    }, {
+      onSuccess: () => {
+        setShowAddressModal(false);
+        setFeedback({
+          type: 'success',
+          message: editingAddress ? 'Alamat berhasil diperbarui!' : 'Alamat baru berhasil ditambahkan!'
+        });
+      },
     });
   }
 
@@ -315,6 +481,16 @@ export default function DashboardPage() {
   function handleOpenInvoice(order) {
     setSelectedInvoiceOrder(order);
     setShowInvoiceModal(true);
+  }
+
+  function handleOpenShipping(order) {
+    setSelectedShippingOrder(order);
+    setShowShippingModal(true);
+  }
+
+  function handleOpenDetail(order) {
+    setSelectedDetailOrder(order);
+    setShowDetailModal(true);
   }
 
   // Review Handlers
@@ -369,6 +545,22 @@ export default function DashboardPage() {
 
         {/* Balance & Points Info: Revisi 3 (Nilai Saldo & Dapat Ditukar Sekarang) */}
         <div className="z-10 flex flex-wrap items-center gap-4 sm:gap-5 md:text-right">
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 border border-white/20">
+            <span className="text-[11px] font-medium text-blue-200 block">Kode Referral</span>
+            <div className="flex items-center gap-2 md:justify-end">
+              <code className="text-base font-bold tracking-wider text-white">{user.referral_code || 'Belum tersedia'}</code>
+              {user.referral_code && (
+                <div className="flex items-center gap-1">
+                  <button type="button" onClick={copyReferralCode} className="rounded-md bg-white/15 px-2 py-1 text-[10px] font-bold text-white hover:bg-white/25">Salin</button>
+                  <button type="button" onClick={copyReferralLink} className="flex h-6 w-6 items-center justify-center rounded-md bg-white/15 text-white hover:bg-white/25" aria-label="Salin link referral" title="Salin link referral">
+                    <span className="material-symbols-outlined text-[15px]">share</span>
+                  </button>
+                </div>
+              )}
+            </div>
+            <span className="text-[10px] text-blue-200/80 block mt-0.5">Bagikan & dapatkan bonus</span>
+          </div>
+
           {/* Card 1: Saldo Poin */}
           <div className="bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 border border-white/20">
             <span className="text-[11px] font-medium text-blue-200 block">Saldo Poin</span>
@@ -415,7 +607,7 @@ export default function DashboardPage() {
         <aside className="lg:col-span-1 bg-white rounded-xl border border-border-subtle p-3 shadow-sm">
           <nav className="flex flex-col gap-1">
             <button
-              onClick={() => { setActiveTab('dashboard'); setFeedback(null); }}
+              onClick={() => changeAccountTab('dashboard')}
               className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-colors text-left ${activeTab === 'dashboard' ? 'bg-blue-50 text-primary border-l-4 border-primary font-bold' : 'text-text-primary hover:bg-surface'}`}
             >
               <span className="material-symbols-outlined text-[20px]">dashboard</span>
@@ -423,7 +615,7 @@ export default function DashboardPage() {
             </button>
 
             <button
-              onClick={() => { setActiveTab('orders'); setFeedback(null); }}
+              onClick={() => changeAccountTab('orders')}
               className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-colors text-left ${activeTab === 'orders' ? 'bg-blue-50 text-primary border-l-4 border-primary font-bold' : 'text-text-secondary hover:bg-surface hover:text-text-primary'}`}
             >
               <span className="material-symbols-outlined text-[20px]">local_mall</span>
@@ -431,7 +623,7 @@ export default function DashboardPage() {
             </button>
 
             <button
-              onClick={() => { setActiveTab('addresses'); setFeedback(null); }}
+              onClick={() => changeAccountTab('addresses')}
               className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-colors text-left ${activeTab === 'addresses' ? 'bg-blue-50 text-primary border-l-4 border-primary font-bold' : 'text-text-secondary hover:bg-surface hover:text-text-primary'}`}
             >
               <span className="material-symbols-outlined text-[20px]">location_on</span>
@@ -444,7 +636,7 @@ export default function DashboardPage() {
             </button>
 
             <button
-              onClick={() => { setActiveTab('points'); setFeedback(null); }}
+              onClick={() => changeAccountTab('points')}
               className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-colors text-left ${activeTab === 'points' ? 'bg-blue-50 text-primary border-l-4 border-primary font-bold' : 'text-text-secondary hover:bg-surface hover:text-text-primary'}`}
             >
               <span className="material-symbols-outlined text-[20px] text-amber-500">stars</span>
@@ -452,7 +644,7 @@ export default function DashboardPage() {
             </button>
 
             <button
-              onClick={() => { setActiveTab('vouchers'); setFeedback(null); }}
+              onClick={() => changeAccountTab('vouchers')}
               className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-colors text-left ${activeTab === 'vouchers' ? 'bg-blue-50 text-primary border-l-4 border-primary font-bold' : 'text-text-secondary hover:bg-surface hover:text-text-primary'}`}
             >
               <span className="material-symbols-outlined text-[20px]">confirmation_number</span>
@@ -460,7 +652,7 @@ export default function DashboardPage() {
             </button>
 
             <button
-              onClick={() => { setActiveTab('wishlist'); setFeedback(null); }}
+              onClick={() => changeAccountTab('wishlist')}
               className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-colors text-left ${activeTab === 'wishlist' ? 'bg-blue-50 text-primary border-l-4 border-primary font-bold' : 'text-text-secondary hover:bg-surface hover:text-text-primary'}`}
             >
               <span className="material-symbols-outlined text-[20px]">favorite</span>
@@ -468,7 +660,7 @@ export default function DashboardPage() {
             </button>
 
             <button
-              onClick={() => { setActiveTab('reviews'); setFeedback(null); }}
+              onClick={() => changeAccountTab('reviews')}
               className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-colors text-left ${activeTab === 'reviews' ? 'bg-blue-50 text-primary border-l-4 border-primary font-bold' : 'text-text-secondary hover:bg-surface hover:text-text-primary'}`}
             >
               <span className="material-symbols-outlined text-[20px]">rate_review</span>
@@ -542,7 +734,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <button
-                  onClick={() => setActiveTab('points')}
+                    onClick={() => changeAccountTab('points')}
                   className="bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors whitespace-nowrap shadow-sm"
                 >
                   Tukar Poin Sekarang
@@ -554,7 +746,7 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-[16px] font-bold text-text-primary">Pesanan Terakhir</h3>
                   <button 
-                    onClick={() => setActiveTab('orders')}
+                    onClick={() => changeAccountTab('orders')}
                     className="text-xs font-semibold text-primary hover:underline"
                   >
                     Lihat Semua
@@ -578,6 +770,14 @@ export default function DashboardPage() {
                           }`}>
                             {order.status}
                           </span>
+                          {order.status_value === 'pending_payment' && order.paymentMethod === 'midtrans' && (
+                            <Link
+                              to={`/pembayaran/${order.number || order.id}`}
+                              className="text-xs font-bold px-3 py-1.5 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors whitespace-nowrap"
+                            >
+                              Bayar Sekarang
+                            </Link>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -617,46 +817,10 @@ export default function DashboardPage() {
                       </div>
 
                       <div className="py-3">
-                        <h4 className="font-bold text-[15px] text-text-primary mb-2">{order.title}</h4>
-                        <ul className="text-xs space-y-2">
-                          {order.items.map((item, idx) => {
-                            const itemKey = `${order.id}_${item.name}`;
-                            const isReviewed = (user.reviewedOrderItems || []).includes(itemKey) ||
-                              myReviews.some(r => r.orderId === order.id && r.productName === item.name);
-                            return (
-                              <li key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2 rounded-lg bg-surface/50 border border-border-subtle">
-                                <span className="flex-1 min-w-0 font-medium text-text-primary">
-                                •{' '}
-                                {productSlugs[item.name?.toLowerCase()] ? (
-                                  <Link
-                                    to={`/produk/${productSlugs[item.name.toLowerCase()]}`}
-                                    className="text-primary hover:underline font-semibold"
-                                  >
-                                    {item.name}
-                                  </Link>
-                                ) : (
-                                  item.name
-                                )}{' '}({item.qty}x)
-                              </span>
-                                <div className="flex items-center gap-3 shrink-0">
-                                  <span className="font-semibold text-text-primary">Rp {(item.price * item.qty).toLocaleString('id-ID')}</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenReview({ name: item.name, id: `prod-${idx + 1}` }, order)}
-                                    className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-colors flex items-center gap-1 cursor-pointer ${
-                                      isReviewed
-                                        ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
-                                        : 'border-primary text-primary hover:bg-primary hover:text-white shadow-2xs'
-                                    }`}
-                                  >
-                                    <span className="material-symbols-outlined text-[13px]">{isReviewed ? 'check_circle' : 'rate_review'}</span>
-                                    {isReviewed ? 'Sudah Diulas' : 'Beri Ulasan (+50 Poin)'}
-                                  </button>
-                                </div>
-                              </li>
-                            );
-                          })}
-                        </ul>
+                        <h4 className="font-bold text-[15px] text-text-primary">{order.title}</h4>
+                        <p className="mt-1 text-xs text-text-secondary">
+                          {(order.items || []).length} produk · {order.items?.reduce((total, item) => total + (item.qty || 0), 0)} item
+                        </p>
                       </div>
 
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-border-subtle">
@@ -667,12 +831,47 @@ export default function DashboardPage() {
                         <div className="flex gap-2 self-end sm:self-auto">
                           <button
                             type="button"
+                            onClick={() => handleOpenDetail(order)}
+                            className="text-xs font-bold px-3.5 py-2 border border-gray-300 rounded-lg hover:border-primary hover:text-primary text-text-primary transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer bg-white"
+                          >
+                            <span className="material-symbols-outlined text-[16px] text-primary">receipt_long</span>
+                            Detail Pesanan
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenShipping(order)}
+                            className="text-xs font-bold px-3.5 py-2 border border-primary rounded-lg text-primary hover:bg-primary hover:text-white transition-colors whitespace-nowrap flex items-center gap-1.5"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">local_shipping</span>
+                            Info Pengiriman
+                          </button>
+                          {order.status_value === 'pending_payment' && order.paymentMethod === 'midtrans' && (
+                            <Link
+                              to={`/pembayaran/${order.number || order.id}`}
+                              className="text-xs font-bold px-3.5 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors whitespace-nowrap flex items-center gap-1.5"
+                            >
+                              <span className="material-symbols-outlined text-[16px]">payments</span>
+                              Bayar Sekarang
+                            </Link>
+                          )}
+                          <button
+                            type="button"
                             onClick={() => handleOpenInvoice(order)}
                             className="text-xs font-bold px-3.5 py-2 border border-gray-300 rounded-lg hover:border-primary hover:text-primary text-text-primary transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer shadow-2xs bg-white"
                           >
                             <span className="material-symbols-outlined text-[16px] text-primary">receipt_long</span>
                             Download Invoice
                           </button>
+                          {['paid', 'processing', 'packed', 'shipped', 'completed'].includes(order.status_value) && (
+                            <button
+                              type="button"
+                              onClick={() => openInvoiceRequest(order)}
+                              className="text-xs font-bold px-3.5 py-2 border border-amber-500 rounded-lg hover:bg-amber-50 text-amber-700 transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer bg-white"
+                            >
+                              <span className="material-symbols-outlined text-[16px]">request_quote</span>
+                              {order.invoiceRequest ? 'Lihat Request Faktur' : 'Request Faktur'}
+                            </button>
+                          )}
                           <Link to="/katalog" className="text-xs font-semibold px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors whitespace-nowrap">
                             Beli Lagi
                           </Link>
@@ -749,7 +948,7 @@ export default function DashboardPage() {
                             {addr.address}
                           </p>
                           <p className="text-xs text-text-secondary">
-                            {[addr.city, addr.province, addr.postalCode].filter(Boolean).join(', ')}
+                            {[addr.subdistrictName, addr.districtName, addr.city, addr.province, addr.postalCode].filter(Boolean).join(', ')}
                           </p>
                         </div>
 
@@ -879,41 +1078,7 @@ export default function DashboardPage() {
                         </div>
                       </div>
 
-                      {/* Province & City */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs font-bold text-text-primary uppercase tracking-wider mb-1">
-                            Provinsi *
-                          </label>
-                          <select
-                            value={addrForm.province}
-                            onChange={e => setAddrForm(f => ({ ...f, province: e.target.value }))}
-                            className="w-full bg-surface border border-border-subtle rounded-lg px-3.5 py-2 text-xs sm:text-sm text-text-primary focus:outline-none focus:border-primary cursor-pointer"
-                          >
-                            <option>DKI Jakarta</option>
-                            <option>Banten</option>
-                            <option>Jawa Barat</option>
-                            <option>Jawa Tengah</option>
-                            <option>Jawa Timur</option>
-                            <option>DI Yogyakarta</option>
-                            <option>Bali</option>
-                            <option>Sumatera Utara</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-text-primary uppercase tracking-wider mb-1">
-                            Kota / Kabupaten *
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={addrForm.city}
-                            onChange={e => setAddrForm(f => ({ ...f, city: e.target.value }))}
-                            placeholder="Cth: Jakarta Selatan"
-                            className="w-full bg-surface border border-border-subtle rounded-lg px-3.5 py-2 text-xs sm:text-sm text-text-primary focus:outline-none focus:border-primary"
-                          />
-                        </div>
-                      </div>
+                      <AddressLocationPicker value={addrForm} onLocationChange={location => setAddrForm(form => ({ ...form, ...location }))} />
 
                       {/* Full Address */}
                       <div>
@@ -1190,7 +1355,7 @@ export default function DashboardPage() {
                             <span>Keuntungan {activeLevel.label}</span>
                           </p>
                           <span className="text-[10px] font-semibold text-white/80 bg-white/15 px-2 py-0.5 rounded">
-                            {activeLevel.maxPoints ? `≥ ${activeLevel.minPoints.toLocaleString('id-ID')} pts` : `≥ 40.000 pts`}
+                            {activeLevel.maxPoints ? `≥ ${activeLevel.minPoints.toLocaleString('id-ID')} pts` : `≥ ${activeLevel.minPoints.toLocaleString('id-ID')} pts`}
                           </span>
                         </div>
                         <ul className="space-y-2">
@@ -1259,6 +1424,57 @@ export default function DashboardPage() {
                 );
               })()}
 
+              <section className="bg-white rounded-xl border border-border-subtle p-5 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-base font-bold text-text-primary">Riwayat Poin</h3>
+                    <p className="mt-1 text-xs text-text-secondary">Catatan perolehan, penukaran, retur, dan penyesuaian poin Anda.</p>
+                  </div>
+                  <span className="material-symbols-outlined text-primary">history</span>
+                </div>
+
+                {(user.pointHistory || []).length > 0 ? (
+                  <div className="mt-4 divide-y divide-border-subtle">
+                    {(user.pointHistory || []).map((entry, index) => {
+                      const labels = {
+                        earn_base: 'Poin belanja',
+                        earn_bonus: 'Bonus tier member',
+                        earn_review: 'Bonus ulasan',
+                        redeem_ewallet: 'Penukaran e-wallet',
+                        redeem_voucher: 'Penukaran voucher',
+                        reversal: 'Penyesuaian retur',
+                        expire: 'Poin kedaluwarsa',
+                        adjustment: 'Penyesuaian admin',
+                      };
+                      const isPositive = entry.points > 0;
+                      return (
+                        <div key={`${entry.type}-${entry.earnedAt}-${index}`} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-text-primary">{labels[entry.type] || entry.type}</p>
+                            <p className="mt-1 truncate text-xs text-text-secondary">
+                              {entry.notes || (entry.orderNumber ? `Pesanan ${entry.orderNumber}` : 'Aktivitas loyalty')}
+                              {entry.earnedAt ? ` · ${new Date(entry.earnedAt).toLocaleDateString('id-ID', { dateStyle: 'medium' })}` : ''}
+                            </p>
+                            {entry.points > 0 && entry.remainingPoints > 0 && (
+                              <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${entry.isClaimable ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                                {entry.isClaimable
+                                  ? 'Siap diklaim'
+                                  : `Menunggu sampai ${new Date(entry.availableAt).toLocaleDateString('id-ID', { dateStyle: 'medium' })}`}
+                              </span>
+                            )}
+                          </div>
+                          <span className={`shrink-0 text-sm font-bold ${isPositive ? 'text-emerald-600' : 'text-red-600'}`}>
+                            {isPositive ? '+' : ''}{entry.points.toLocaleString('id-ID')} Pts
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="mt-4 rounded-lg border border-dashed border-border-subtle p-4 text-center text-xs text-text-secondary">Belum ada riwayat poin.</p>
+                )}
+              </section>
+
               {/* Sub-section 1: Klaim Saldo E-Wallet — Collapsible Accordion */}
               <div className="bg-white rounded-xl border border-border-subtle shadow-sm overflow-hidden">
                 {/* Accordion Header / Toggle Button — Mobile-Optimized */}
@@ -1286,7 +1502,7 @@ export default function DashboardPage() {
                     {/* Right: Badge (Desktop) & Chevron Button */}
                     <div className="flex items-center gap-2 shrink-0">
                       <span className="hidden sm:inline-flex text-[11px] font-bold text-primary bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-lg whitespace-nowrap">
-                        {pointsBalance.toLocaleString('id-ID')} Poin tersedia
+                        {canRedeemNowPoints.toLocaleString('id-ID')} Poin siap diklaim
                       </span>
                       <div className={`w-8 h-8 rounded-full bg-surface sm:bg-transparent flex items-center justify-center transition-transform duration-200 ${showEwalletForm ? 'rotate-180' : 'rotate-0'}`}>
                         <span className="material-symbols-outlined text-text-secondary text-[22px]">
@@ -1303,7 +1519,7 @@ export default function DashboardPage() {
                       Poin Tersedia:
                     </span>
                     <span className="font-bold text-primary bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md">
-                      {pointsBalance.toLocaleString('id-ID')} Poin
+                      {canRedeemNowPoints.toLocaleString('id-ID')} Poin siap diklaim
                     </span>
                   </div>
                 </button>
@@ -1412,13 +1628,9 @@ export default function DashboardPage() {
                           4. Pilih Nominal Penukaran Poin
                         </label>
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-                          {[
-                            { points: 500, rupiah: 50000, label: '500 Poin' },
-                            { points: 1000, rupiah: 100000, label: '1.000 Poin' },
-                            { points: 2500, rupiah: 250000, label: '2.500 Poin' },
-                          ].map((pkg) => {
+                          {ewalletPackages.map((pkg) => {
                             const isSelected = selectedEwalletPackage.points === pkg.points;
-                            const isAffordable = pointsBalance >= pkg.points;
+                            const isAffordable = canRedeemNowPoints >= pkg.points;
                             return (
                               <div
                                 key={pkg.points}
@@ -1456,14 +1668,19 @@ export default function DashboardPage() {
                       {/* Submit Button */}
                       <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div className="text-xs text-text-secondary">
-                          Poin saat ini: <strong className="text-primary font-bold">{pointsBalance.toLocaleString('id-ID')} Pts</strong> • Biaya penukaran: <strong className="text-amber-700 font-bold">{selectedEwalletPackage.points} Pts</strong>
+                          Poin siap diklaim: <strong className="text-primary font-bold">{canRedeemNowPoints.toLocaleString('id-ID')} Pts</strong> • Saldo total: <strong className="text-text-primary font-bold">{pointsBalance.toLocaleString('id-ID')} Pts</strong> • Biaya penukaran: <strong className="text-amber-700 font-bold">{selectedEwalletPackage.points} Pts</strong>
+                          {pendingPoints > 0 && (
+                            <p className="text-[10px] text-amber-700 mt-1">
+                              {pendingPoints.toLocaleString('id-ID')} poin baru masih menunggu masa aman 7 hari.
+                            </p>
+                          )}
                           <p className="text-[10px] text-text-secondary/80 mt-1 flex items-center gap-1">
                             <span>🛡️ Batas cash-out: Maks. 1x per 30 hari (plafon s/d Rp 500.000) untuk akun terverifikasi.</span>
                           </p>
                         </div>
                         <button
                           type="submit"
-                          disabled={pointsBalance < selectedEwalletPackage.points}
+                          disabled={canRedeemNowPoints < selectedEwalletPackage.points}
                           className="w-full sm:w-auto px-6 py-2.5 bg-primary hover:bg-primary-hover disabled:bg-gray-200 disabled:text-gray-400 text-white text-xs sm:text-sm font-bold rounded-xl shadow-sm transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                         >
                           <span className="material-symbols-outlined text-[18px]">verified</span>
@@ -1543,83 +1760,45 @@ export default function DashboardPage() {
                   <p className="text-xs text-text-secondary mt-0.5">
                     Nilai potongan 1:1 setara dengan nilai poin (1 Poin = Rp 100). Tanpa batasan kuota penarikan bulanan & langsung masuk ke tab Voucher & Promo.
                   </p>
+                  <p className="text-xs text-text-secondary mt-1">
+                    Poin siap ditukar: <strong className="text-primary">{redeemableVoucherPoints.toLocaleString('id-ID')} Pts</strong>
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {/* Voucher 1: 750 Poin -> Rp 75.000 */}
-                  <div className="border border-border-subtle rounded-xl p-4 bg-amber-50/40 flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded">VOUCHER 75K</span>
-                        <span className="text-xs font-bold text-amber-700">750 Pts</span>
+                  {voucherPackages.map((pkg) => {
+                    const isAffordable = redeemableVoucherPoints >= pkg.points;
+                    const toneClasses = {
+                      amber: ['bg-amber-50/40', 'text-amber-800', 'bg-amber-100', 'text-amber-700', 'bg-amber-600', 'hover:bg-amber-700'],
+                      blue: ['bg-blue-50/40', 'text-primary', 'bg-blue-100', 'text-amber-700', 'bg-primary', 'hover:bg-primary-hover'],
+                      purple: ['bg-purple-50/40', 'text-purple-700', 'bg-purple-100', 'text-amber-700', 'bg-purple-700', 'hover:bg-purple-800'],
+                    }[pkg.tone];
+                    return (
+                      <div key={pkg.points} className={`border border-border-subtle rounded-xl p-4 ${toneClasses[0]} flex flex-col justify-between`}>
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className={`text-xs font-bold ${toneClasses[1]} ${toneClasses[2]} px-2 py-0.5 rounded`}>{pkg.label}</span>
+                            <span className={`text-xs font-bold ${toneClasses[3]}`}>{pkg.points.toLocaleString('id-ID')} Pts</span>
+                          </div>
+                          <h5 className="font-bold text-text-primary text-sm">Potongan Rp {(pkg.discount).toLocaleString('id-ID')}</h5>
+                          <p className="text-xs text-text-secondary mt-1">Min. belanja Rp {pkg.minOrder.toLocaleString('id-ID')} • Berlaku {pkg.validityDays} Hari</p>
+                        </div>
+                        <button
+                          onClick={() => handleRedeemVoucher(pkg.points, {
+                            id: `VCH-${Date.now()}`,
+                            title: `Voucher Potongan Rp ${pkg.discount.toLocaleString('id-ID')}`,
+                            minOrder: pkg.minOrder,
+                            discount: pkg.discount,
+                            expiry: `${pkg.validityDays} Hari ke depan`
+                          })}
+                          disabled={!isAffordable}
+                          className={`mt-4 w-full ${toneClasses[4]} ${toneClasses[5]} disabled:bg-gray-200 disabled:text-gray-400 text-white text-xs font-semibold py-2 rounded-lg transition-colors cursor-pointer`}
+                        >
+                          {isAffordable ? `Tukar ${pkg.points.toLocaleString('id-ID')} Poin` : 'Poin Belum Matang'}
+                        </button>
                       </div>
-                      <h5 className="font-bold text-text-primary text-sm">Potongan Rp 75.000 Aksesori & Hardware</h5>
-                      <p className="text-xs text-text-secondary mt-1">Min. belanja Rp 750.000 • Berlaku 30 Hari</p>
-                    </div>
-                    <button
-                      onClick={() => handleRedeemVoucher(750, {
-                        id: `VCH-${Date.now()}`,
-                        title: 'Voucher Potongan Rp 75.000 Aksesori & Hardware',
-                        minOrder: 750000,
-                        discount: 75000,
-                        expiry: '30 Hari ke depan'
-                      })}
-                      disabled={pointsBalance < 750}
-                      className="mt-4 w-full bg-amber-600 hover:bg-amber-700 disabled:bg-gray-200 disabled:text-gray-400 text-white text-xs font-semibold py-2 rounded-lg transition-colors cursor-pointer"
-                    >
-                      {pointsBalance >= 750 ? 'Tukar 750 Poin' : 'Poin Kurang'}
-                    </button>
-                  </div>
-
-                  {/* Voucher 2: 1.500 Poin -> Rp 150.000 */}
-                  <div className="border border-border-subtle rounded-xl p-4 bg-blue-50/40 flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-bold text-primary bg-blue-100 px-2 py-0.5 rounded">VOUCHER 150K</span>
-                        <span className="text-xs font-bold text-amber-700">1.500 Pts</span>
-                      </div>
-                      <h5 className="font-bold text-text-primary text-sm">Potongan Rp 150.000 Audio Visual & IT</h5>
-                      <p className="text-xs text-text-secondary mt-1">Min. belanja Rp 1.500.000 • Berlaku 30 Hari</p>
-                    </div>
-                    <button
-                      onClick={() => handleRedeemVoucher(1500, {
-                        id: `VCH-${Date.now()}`,
-                        title: 'Voucher Potongan Rp 150.000 Audio Visual & IT',
-                        minOrder: 1500000,
-                        discount: 150000,
-                        expiry: '30 Hari ke depan'
-                      })}
-                      disabled={pointsBalance < 1500}
-                      className="mt-4 w-full bg-primary hover:bg-primary-hover disabled:bg-gray-200 disabled:text-gray-400 text-white text-xs font-semibold py-2 rounded-lg transition-colors cursor-pointer"
-                    >
-                      {pointsBalance >= 1500 ? 'Tukar 1.500 Poin' : 'Poin Kurang'}
-                    </button>
-                  </div>
-
-                  {/* Voucher 3: 3.000 Poin -> Rp 300.000 */}
-                  <div className="border border-border-subtle rounded-xl p-4 bg-purple-50/40 flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-bold text-purple-700 bg-purple-100 px-2 py-0.5 rounded">VOUCHER 300K</span>
-                        <span className="text-xs font-bold text-amber-700">3.000 Pts</span>
-                      </div>
-                      <h5 className="font-bold text-text-primary text-sm">Potongan Rp 300.000 Solusi Enterprise</h5>
-                      <p className="text-xs text-text-secondary mt-1">Min. belanja Rp 3.000.000 • Berlaku 30 Hari</p>
-                    </div>
-                    <button
-                      onClick={() => handleRedeemVoucher(3000, {
-                        id: `VCH-${Date.now()}`,
-                        title: 'Voucher Potongan Rp 300.000 Solusi Enterprise',
-                        minOrder: 3000000,
-                        discount: 300000,
-                        expiry: '30 Hari ke depan'
-                      })}
-                      disabled={pointsBalance < 3000}
-                      className="mt-4 w-full bg-purple-700 hover:bg-purple-800 disabled:bg-gray-200 disabled:text-gray-400 text-white text-xs font-semibold py-2 rounded-lg transition-colors cursor-pointer"
-                    >
-                      {pointsBalance >= 3000 ? 'Tukar 3.000 Poin' : 'Poin Kurang'}
-                    </button>
-                  </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -1793,7 +1972,7 @@ export default function DashboardPage() {
                       <div className="space-y-3.5">
                         {pendingReviewItems.map(({ order, item }) => (
                           <div
-                            key={itemKey}
+                            key={`${order.id}-${item.id}`}
                             className="p-4 rounded-xl border border-border-subtle bg-white hover:border-primary/50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs"
                           >
                             <div className="space-y-1">
@@ -1960,12 +2139,104 @@ export default function DashboardPage() {
         </section>
       </div>
 
+      {invoiceOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4" role="dialog" aria-modal="true">
+          <form onSubmit={submitInvoiceRequest} className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-border-subtle px-6 py-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-amber-700">Faktur Pajak</p>
+                <h2 className="mt-1 text-lg font-bold text-text-primary">Request Faktur {invoiceOrder.number}</h2>
+              </div>
+              <button type="button" onClick={() => setInvoiceOrder(null)} className="rounded-lg p-2 text-text-secondary hover:bg-surface" aria-label="Tutup">✕</button>
+            </div>
+            <div className="space-y-4 p-6">
+              {invoiceOrder.invoiceRequest ? (
+                <>
+                  <div className="rounded-xl bg-amber-50 p-4">
+                    <p className="text-xs font-bold uppercase tracking-wider text-amber-800">Status Request Faktur</p>
+                    <p className="mt-1 text-sm font-bold text-text-primary">{{
+                      requested: 'Permintaan sudah diterima dan menunggu diproses admin.',
+                      processing: 'Permintaan sedang diproses oleh admin.',
+                      approved: 'Faktur sudah disetujui dan siap digunakan.',
+                      rejected: 'Permintaan faktur ditolak. Silakan hubungi admin untuk informasi lebih lanjut.',
+                    }[invoiceOrder.invoiceRequest.status] || 'Permintaan faktur sedang diproses.'}</p>
+                  </div>
+                  <div className="rounded-xl border border-border-subtle p-4">
+                    <h3 className="mb-3 text-sm font-bold text-text-primary">Data Faktur yang Diajukan</h3>
+                    <dl className="space-y-2 text-sm">
+                      <div className="flex justify-between gap-4"><dt className="text-text-secondary">Nama wajib pajak</dt><dd className="text-right font-semibold text-text-primary">{invoiceOrder.invoiceRequest.taxpayerName || '-'}</dd></div>
+                      <div className="flex justify-between gap-4"><dt className="text-text-secondary">NPWP</dt><dd className="text-right font-semibold text-text-primary">{invoiceOrder.invoiceRequest.npwp || '-'}</dd></div>
+                    </dl>
+                  </div>
+                  <p className="text-xs text-text-secondary">Data ini adalah data yang digunakan saat request faktur untuk pesanan ini.</p>
+                  <div className="flex justify-end pt-2">
+                    <button type="button" onClick={() => setInvoiceOrder(null)} className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white">Tutup</button>
+                  </div>
+                </>
+              ) : <>
+              {(user.taxProfiles || []).length > 0 && (
+                <div>
+                  <label className="mb-1 block text-xs font-bold text-text-secondary">Gunakan NPWP tersimpan</label>
+                  <select
+                    value={taxForm.taxProfileId}
+                    onChange={(event) => {
+                      const profile = user.taxProfiles.find((item) => String(item.id) === event.target.value);
+                      setTaxForm((current) => ({ ...current, taxProfileId: event.target.value, npwp: profile?.npwp || '', taxpayerName: profile?.taxpayerName || '', taxpayerAddress: profile?.taxpayerAddress || '' }));
+                    }}
+                    className="w-full rounded-lg border border-border-subtle px-3 py-2 text-sm"
+                  >
+                    <option value="">Tambah NPWP baru</option>
+                    {user.taxProfiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.label} — {profile.npwp}</option>)}
+                  </select>
+                </div>
+              )}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <input value={taxForm.label} onChange={(event) => setTaxForm((current) => ({ ...current, label: event.target.value }))} placeholder="Label NPWP" className="rounded-lg border border-border-subtle px-3 py-2 text-sm" required={!taxForm.taxProfileId} disabled={Boolean(taxForm.taxProfileId)} />
+                <input value={taxForm.npwp} onChange={(event) => setTaxForm((current) => ({ ...current, npwp: event.target.value }))} placeholder="Nomor NPWP" className="rounded-lg border border-border-subtle px-3 py-2 text-sm" required={!taxForm.taxProfileId} disabled={Boolean(taxForm.taxProfileId)} />
+              </div>
+              <input value={taxForm.taxpayerName} onChange={(event) => setTaxForm((current) => ({ ...current, taxpayerName: event.target.value }))} placeholder="Nama wajib pajak" className="w-full rounded-lg border border-border-subtle px-3 py-2 text-sm" required={!taxForm.taxProfileId} disabled={Boolean(taxForm.taxProfileId)} />
+              <textarea value={taxForm.taxpayerAddress} onChange={(event) => setTaxForm((current) => ({ ...current, taxpayerAddress: event.target.value }))} placeholder="Alamat wajib pajak" className="w-full rounded-lg border border-border-subtle px-3 py-2 text-sm" rows="3" disabled={Boolean(taxForm.taxProfileId)} />
+              {!taxForm.taxProfileId && <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(event) => setTaxForm((current) => ({ ...current, document: event.target.files?.[0] || null }))} className="w-full text-sm" />}
+              <p className="text-xs text-text-secondary">NPWP yang sudah tersimpan dapat digunakan kembali untuk pesanan berikutnya.</p>
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setInvoiceOrder(null)} className="rounded-lg border border-border-subtle px-4 py-2 text-sm">Batal</button>
+                <button type="submit" disabled={isSubmittingInvoice} className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60">
+                  {isSubmittingInvoice && <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
+                  {isSubmittingInvoice ? 'Mengirim...' : 'Kirim Request Faktur'}
+                </button>
+              </div>
+              </>}
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* INVOICE MODAL */}
       <InvoiceModal
         isOpen={showInvoiceModal}
         onClose={() => setShowInvoiceModal(false)}
         order={selectedInvoiceOrder}
         user={user}
+      />
+
+      <ShippingTrackingModal
+        isOpen={showShippingModal}
+        onClose={() => setShowShippingModal(false)}
+        order={selectedShippingOrder}
+      />
+
+      <OrderDetailModal
+        isOpen={showDetailModal}
+        onClose={() => setShowDetailModal(false)}
+        order={selectedDetailOrder}
+        onOpenShipping={(order) => {
+          setShowDetailModal(false);
+          handleOpenShipping(order);
+        }}
+        onOpenInvoice={(order) => {
+          setShowDetailModal(false);
+          handleOpenInvoice(order);
+        }}
       />
 
       {/* REVIEW MODAL (FORM ULASAN) */}

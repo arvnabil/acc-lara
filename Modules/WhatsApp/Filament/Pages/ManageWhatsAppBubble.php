@@ -14,6 +14,9 @@ use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Filament\Schemas\Components\Actions;
+use Filament\Schemas\Components\EmbeddedSchema;
+use Filament\Schemas\Components\Form;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Modules\WhatsApp\Models\WhatsAppSetting;
@@ -26,7 +29,6 @@ class ManageWhatsAppBubble extends Page implements HasForms
     protected static ?string $navigationLabel = 'WhatsApp Bubble';
     protected static string|\UnitEnum|null $navigationGroup = 'Settings';
     protected static ?string $title = 'WhatsApp Bubble';
-    protected string $view = 'whatsapp::filament.pages.manage-whats-app-bubble';
     public ?array $data = [];
 
     public function mount(): void
@@ -34,9 +36,9 @@ class ManageWhatsAppBubble extends Page implements HasForms
         $this->form->fill(WhatsAppSetting::getInstance()->toArray());
     }
 
-    public function form(Schema $form): Schema
+    public function form(Schema $schema): Schema
     {
-        return $form->schema([
+        return $schema->components([
             Section::make('Core Settings')->schema([
                 Toggle::make('is_enabled')->label('Enable Bubble'),
                 TextInput::make('phone')->label('WhatsApp Number')->required()->helperText('Format internasional, contoh 6287780116800'),
@@ -57,6 +59,27 @@ class ManageWhatsAppBubble extends Page implements HasForms
                 CheckboxList::make('active_pages')->options(['all' => 'All Pages', 'homepage' => 'Homepage', 'products' => 'Product Pages'])->default(['all']),
             ]),
         ])->statePath('data');
+    }
+
+    public function content(Schema $schema): Schema
+    {
+        return $schema->components([
+            Form::make([EmbeddedSchema::make('form')])
+                ->id('form')
+                ->livewireSubmitHandler('save')
+                ->footer([
+                    Actions::make($this->getFormActions())
+                        ->alignment($this->getFormActionsAlignment())
+                        ->fullWidth($this->hasFullWidthFormActions())
+                        ->sticky($this->areFormActionsSticky())
+                        ->key('form-actions'),
+                ]),
+        ]);
+    }
+
+    protected function hasFullWidthFormActions(): bool
+    {
+        return false;
     }
 
     protected function getFormActions(): array
